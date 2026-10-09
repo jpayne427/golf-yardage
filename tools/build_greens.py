@@ -22,6 +22,7 @@ PARS = {
     "trails": [4,3,5,4,3,4,4,4,5,4,4,3,4,4,4,5,3,4],
     "oldmac": [4,3,4,4,3,5,4,3,4,4,4,3,4,4,5,4,5,4],
     "dunes":  [4,3,5,4,4,3,4,4,5,4,4,3,5,4,3,4,4,5],
+    "pacific": [4,4,5,4,3,4,4,4,4,3,3,5,4,3,5,4,3,5],
 }
 ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter",
              "https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]
@@ -165,9 +166,14 @@ def main():
         cid = named(ch)
         if cid and cid not in labels.values(): labels[i] = cid
         else: rest.append(i)
-    rest.sort(key=lambda i: -sum(h["line"][-1][1] for h in chains[i]) / len(chains[i]))  # north first
-    order = {1: ["dunes"], 2: ["oldmac", "dunes"], 3: ["oldmac", "dunes", "pacific"]}.get(len(rest), [])
-    for i, cid in zip(rest, order): labels[i] = cid
+    # resort courses share one outline: give each routing the course whose card pars it fits best
+    import itertools
+    left = [c for c in ("oldmac", "dunes", "pacific") if c not in labels.values()]
+    best, best_score = (), -1
+    for perm in itertools.permutations(left, min(len(left), len(rest))):
+        score = sum(par_match(chains[i], cid) for i, cid in zip(rest, perm))
+        if score > best_score: best, best_score = perm, score
+    for i, cid in zip(rest, best): labels[i] = cid
     report.append(f"Routings found: {len(chains)} (lengths {', '.join(str(len(c)) for c in chains)})")
     for i, ch in enumerate(chains):
         cid = labels.get(i, "?")
