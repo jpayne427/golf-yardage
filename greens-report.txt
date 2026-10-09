@@ -1,0 +1,61 @@
+OSM courses matched: Bandon Dunes Golf Resort, Bandon Preserve, Bandon Sheep Ranch, Bandon Trails, Practice Center, Shortys
+Hole lines: 122  Green outlines: 129
+sheep: 14 full F/M/B, 4 middle only, missing holes: none
+  sheep-1: green depth 38 yd
+  sheep-2: no green outline, middle = end of hole line
+  sheep-3: green depth 32 yd
+  sheep-4: green depth 26 yd
+  sheep-5: green depth 50 yd
+  sheep-6: green depth 33 yd
+  sheep-7: green depth 32 yd
+  sheep-8: green depth 45 yd
+  sheep-9: green depth 44 yd
+  sheep-10: green depth 38 yd
+  sheep-11: green depth 11 yd
+  sheep-12: green depth 39 yd
+  sheep-13: no green outline, middle = end of hole line
+  sheep-14: no green outline, middle = end of hole line
+  sheep-15: green depth 32 yd
+  sheep-16: green depth 43 yd
+  sheep-17: no green outline, middle = end of hole line
+  sheep-18: green depth 42 yd
+trails: 6 full F/M/B, 12 middle only, missing holes: none
+  trails-1: no green outline, middle = end of hole line
+  trails-2: no green outline, middle = end of hole line
+  trails-3: no green outline, middle = end of hole line
+  trails-4: no green outline, middle = end of hole line
+  trails-5: green depth 42 yd
+  trails-6: no green outline, middle = end of hole line
+  trails-7: green depth 45 yd
+  trails-8: no green outline, middle = end of hole line
+  trails-9: green depth 44 yd
+  trails-10: green depth 7 yd
+  trails-11: no green outline, middle = end of hole line
+  trails-12: green depth 51 yd
+  trails-13: no green outline, middle = end of hole line
+  trails-14: no green outline, middle = end of hole line
+  trails-15: no green outline, middle = end of hole line
+  trails-16: no green outline, middle = end of hole line
+  trails-17: green depth 17 yd
+  trails-18: no green outline, middle = end of hole line
+oldmac: 0 full F/M/B, 0 middle only, missing holes: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18
+dunes: 12 full F/M/B, 6 middle only, missing holes: none
+  dunes-1: green depth 42 yd
+  dunes-2: green depth 42 yd
+  dunes-3: green depth 7 yd
+  dunes-4: green depth 43 yd
+  dunes-5: green depth 51 yd
+  dunes-6: green depth 14 yd
+  dunes-7: green depth 49 yd
+  dunes-8: no green outline, middle = end of hole line
+  dunes-9: green depth 28 yd
+  dunes-10: green depth 108 yd
+  dunes-11: no green outline, middle = end of hole line
+  dunes-12: no green outline, middle = end of hole line
+  dunes-13: green depth 53 yd
+  dunes-14: green depth 17 yd
+  dunes-15: green depth 43 yd
+  dunes-16: no green outline, middle = end of hole line
+  dunes-17: no green outline, middle = end of hole line
+  dunes-18: no green outline, middle = end of hole line
+pacific: 0 full F/M/B, 0 middle only, missing holes: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18
