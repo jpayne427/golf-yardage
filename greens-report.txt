@@ -1,6 +1,12 @@
 OSM courses matched: Bandon Dunes Golf Resort, Bandon Preserve, Bandon Sheep Ranch, Bandon Trails, Practice Center, Shortys
 Hole lines: 122  Green outlines: 129
-sheep: 14 full F/M/B, 4 middle only, missing holes: none
+Routings found: 5 (lengths 18, 18, 18, 18, 18)
+  routing 0: sheep, 18 holes, avg lat 43.2181, hole yards 1:558 2:339 3:188 4:472 5:194 6:447 7:152 8:423 9:399 10:392 11:530 12:415 13:513 14:403 15:326 16:152 17:323 18:457, par check 17/18
+  routing 1: dunes, 18 holes, avg lat 43.1969, hole yards 1:414 2:216 3:561 4:442 5:432 6:218 7:383 8:290 9:366 10:131 11:108 12:452 13:412 14:98 15:437 16:257 17:129 18:585, par check 10/18
+  routing 2: oldmac, 18 holes, avg lat 43.2061, hole yards 1:395 2:171 3:383 4:519 5:160 6:554 7:376 8:201 9:402 10:471 11:473 12:248 13:404 14:365 15:548 16:474 17:544 18:466, par check 17/18
+  routing 3: trails, 18 holes, avg lat 43.1796, hole yards 1:358 2:207 3:554 4:408 5:129 6:407 7:441 8:328 9:570 10:410 11:459 12:244 13:401 14:319 15:397 16:532 17:188 18:416, par check 18/18
+  routing 4: pacific, 18 holes, avg lat 43.1919, hole yards 1:308 2:336 3:501 4:393 5:197 6:306 7:433 8:388 9:591 10:354 11:463 12:238 13:539 14:323 15:206 16:354 17:405 18:548
+sheep: 13 full F/M/B, 5 middle only, missing holes: none
   sheep-1: green depth 38 yd
   sheep-2: no green outline, middle = end of hole line
   sheep-3: green depth 32 yd
@@ -11,7 +17,7 @@ sheep: 14 full F/M/B, 4 middle only, missing holes: none
   sheep-8: green depth 45 yd
   sheep-9: green depth 44 yd
   sheep-10: green depth 38 yd
-  sheep-11: green depth 11 yd
+  sheep-11: odd green shape (11 yd deep), middle = green center
   sheep-12: green depth 39 yd
   sheep-13: no green outline, middle = end of hole line
   sheep-14: no green outline, middle = end of hole line
@@ -19,7 +25,7 @@ sheep: 14 full F/M/B, 4 middle only, missing holes: none
   sheep-16: green depth 43 yd
   sheep-17: no green outline, middle = end of hole line
   sheep-18: green depth 42 yd
-trails: 6 full F/M/B, 12 middle only, missing holes: none
+trails: 5 full F/M/B, 13 middle only, missing holes: none
   trails-1: no green outline, middle = end of hole line
   trails-2: no green outline, middle = end of hole line
   trails-3: no green outline, middle = end of hole line
@@ -29,7 +35,7 @@ trails: 6 full F/M/B, 12 middle only, missing holes: none
   trails-7: green depth 45 yd
   trails-8: no green outline, middle = end of hole line
   trails-9: green depth 44 yd
-  trails-10: green depth 7 yd
+  trails-10: odd green shape (7 yd deep), middle = green center
   trails-11: no green outline, middle = end of hole line
   trails-12: green depth 51 yd
   trails-13: no green outline, middle = end of hole line
@@ -38,24 +44,60 @@ trails: 6 full F/M/B, 12 middle only, missing holes: none
   trails-16: no green outline, middle = end of hole line
   trails-17: green depth 17 yd
   trails-18: no green outline, middle = end of hole line
-oldmac: 0 full F/M/B, 0 middle only, missing holes: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18
-dunes: 12 full F/M/B, 6 middle only, missing holes: none
+oldmac: 12 full F/M/B, 6 middle only, missing holes: none
+  oldmac-1: green depth 57 yd
+  oldmac-2: green depth 28 yd
+  oldmac-3: no green outline, middle = end of hole line
+  oldmac-4: green depth 43 yd
+  oldmac-5: green depth 34 yd
+  oldmac-6: green depth 14 yd
+  oldmac-7: green depth 38 yd
+  oldmac-8: green depth 62 yd
+  oldmac-9: green depth 43 yd
+  oldmac-10: odd green shape (108 yd deep), middle = green center
+  oldmac-11: no green outline, middle = end of hole line
+  oldmac-12: no green outline, middle = end of hole line
+  oldmac-13: green depth 20 yd
+  oldmac-14: green depth 17 yd
+  oldmac-15: green depth 43 yd
+  oldmac-16: no green outline, middle = end of hole line
+  oldmac-17: no green outline, middle = end of hole line
+  oldmac-18: green depth 39 yd
+dunes: 7 full F/M/B, 11 middle only, missing holes: none
   dunes-1: green depth 42 yd
-  dunes-2: green depth 42 yd
-  dunes-3: green depth 7 yd
-  dunes-4: green depth 43 yd
+  dunes-2: no green outline, middle = end of hole line
+  dunes-3: odd green shape (7 yd deep), middle = green center
+  dunes-4: no green outline, middle = end of hole line
   dunes-5: green depth 51 yd
-  dunes-6: green depth 14 yd
-  dunes-7: green depth 49 yd
+  dunes-6: no green outline, middle = end of hole line
+  dunes-7: green depth 31 yd
   dunes-8: no green outline, middle = end of hole line
-  dunes-9: green depth 28 yd
-  dunes-10: green depth 108 yd
-  dunes-11: no green outline, middle = end of hole line
+  dunes-9: green depth 54 yd
+  dunes-10: green depth 32 yd
+  dunes-11: odd green shape (8 yd deep), middle = green center
   dunes-12: no green outline, middle = end of hole line
-  dunes-13: green depth 53 yd
-  dunes-14: green depth 17 yd
-  dunes-15: green depth 43 yd
-  dunes-16: no green outline, middle = end of hole line
+  dunes-13: no green outline, middle = end of hole line
+  dunes-14: no green outline, middle = end of hole line
+  dunes-15: green depth 36 yd
+  dunes-16: green depth 31 yd
   dunes-17: no green outline, middle = end of hole line
   dunes-18: no green outline, middle = end of hole line
-pacific: 0 full F/M/B, 0 middle only, missing holes: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18
+pacific: 8 full F/M/B, 10 middle only, missing holes: none
+  pacific-1: no green outline, middle = end of hole line
+  pacific-2: green depth 42 yd
+  pacific-3: no green outline, middle = end of hole line
+  pacific-4: no green outline, middle = end of hole line
+  pacific-5: green depth 44 yd
+  pacific-6: no green outline, middle = end of hole line
+  pacific-7: green depth 49 yd
+  pacific-8: no green outline, middle = end of hole line
+  pacific-9: green depth 28 yd
+  pacific-10: odd green shape (2 yd deep), middle = green center
+  pacific-11: green depth 32 yd
+  pacific-12: no green outline, middle = end of hole line
+  pacific-13: green depth 53 yd
+  pacific-14: no green outline, middle = end of hole line
+  pacific-15: odd green shape (10 yd deep), middle = green center
+  pacific-16: green depth 21 yd
+  pacific-17: odd green shape (66 yd deep), middle = green center
+  pacific-18: green depth 29 yd
