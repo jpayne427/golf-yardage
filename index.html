@@ -99,7 +99,7 @@ button{cursor:pointer}
 
 <div class="fabs">
   <button class="fab glass" id="locate" aria-label="Center on me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
-  <button class="fab glass" id="togreen" aria-label="Show the green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 21V3l11 4-11 4"/></svg></button>
+  <button class="fab glass" id="togreen" aria-label="Show the whole hole"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 21V3l11 4-11 4"/></svg></button>
   <button class="fab glass" id="menubtn" aria-label="More"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
 </div>
 
@@ -141,6 +141,7 @@ button{cursor:pointer}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <script>
 /* ---- config ---- */
 const COURSES=[
@@ -160,14 +161,13 @@ const $=id=>document.getElementById(id);
 const store={get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 
 /* ---- map ---- */
-const map=L.map("map",{zoomControl:false,attributionControl:true,tap:true,maxZoom:21}).setView(RESORT,15);
+const map=L.map("map",{zoomControl:false,attributionControl:true,tap:true,maxZoom:21,zoomSnap:0.25,
+  rotate:true,bearing:0,touchRotate:false,rotateControl:false,shiftKeyRotate:false}).setView(RESORT,15);
 L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{
   maxNativeZoom:19,maxZoom:21,attribution:"Imagery © Esri, Maxar, Earthstar Geographics"
 }).addTo(map);
 const lineLayer=L.layerGroup().addTo(map),greenLayer=L.layerGroup().addTo(map);
 let meMarker=null,accCircle=null;
-// keep the hole clear of the floating card (top-left) and hole switcher (bottom)
-const PAD={paddingTopLeft:[150,40],paddingBottomRight:[70,110]};
 
 /* ---- distance ---- */
 function yards(a,b){const R=6371008.8,t=Math.PI/180;
@@ -179,6 +179,10 @@ const ll=p=>[p.lat,p.lng];
 /* ---- greens data ---- */
 const key=()=>st.course+"-"+st.hole;
 function green(){return st.local[key()]||st.shared[key()]||null}
+function tee(){return st.local[key()]?.T||st.shared[key()]?.T||null}
+function azimuth(a,b){const t=Math.PI/180,y=Math.sin((b[1]-a[1])*t)*Math.cos(b[0]*t),
+  x=Math.cos(a[0]*t)*Math.sin(b[0]*t)-Math.sin(a[0]*t)*Math.cos(b[0]*t)*Math.cos((b[1]-a[1])*t);
+  return(Math.atan2(y,x)/t+360)%360}
 function allGreens(){return{...st.shared,...st.local}}
 async function loadShared(){
   try{const r=await fetch("greens.json",{cache:"no-cache"});if(r.ok)st.shared=await r.json()}catch(e){}
@@ -230,10 +234,10 @@ map.on("click",e=>{
   const p=ll(e.latlng);
   if(st.marking){
     const k=["F","M","B"][st.markStep];
-    const g={...(st.local[key()]||st.shared[key()]||{})};delete g.src;g[k]=[+p[0].toFixed(6),+p[1].toFixed(6)];
+    const g={...(st.local[key()]||st.shared[key()]||{})};delete g.src;if(!g.T&&st.shared[key()]?.T)g.T=st.shared[key()].T;g[k]=[+p[0].toFixed(6),+p[1].toFixed(6)];
     st.local[key()]=g;store.set("greens.local",st.local);
     st.markStep++;
-    if(st.markStep>2){st.markStep=0;if(st.hole<18){st.hole++;saveNav();flyToHole(true)}else stopMarking()}
+    if(st.markStep>2){st.markStep=0;if(st.hole<18){st.hole++;saveNav();flyToHole()}else stopMarking()}
     draw();return;
   }
   if(st.pins.length>=(st.me?2:3))st.pins=[];
@@ -244,16 +248,25 @@ $("clear").onclick=()=>{st.pins=[];draw()};
 $("menubtn").onclick=()=>{$("menu").hidden=false};
 $("menuclose").onclick=()=>{$("menu").hidden=true};
 $("menu").onclick=e=>{if(e.target.id==="menu")$("menu").hidden=true};
-$("markbtn").onclick=()=>{$("menu").hidden=true;st.marking=true;st.markStep=0;st.pins=[];flyToHole(true);draw()};
+$("markbtn").onclick=()=>{$("menu").hidden=true;st.marking=true;st.markStep=0;st.pins=[];flyToHole();draw()};
 $("prev").onclick=()=>{st.hole=st.hole<=1?18:st.hole-1;st.markStep=0;st.pins=[];saveNav();flyToHole();draw()};
 $("next").onclick=()=>{st.hole=st.hole>=18?1:st.hole+1;st.markStep=0;st.pins=[];saveNav();flyToHole();draw()};
-$("course").onchange=e=>{st.course=e.target.value;st.hole=1;st.pins=[];saveNav();flyToHole(true);draw()};
+$("course").onchange=e=>{st.course=e.target.value;st.hole=1;st.pins=[];saveNav();flyToHole();draw()};
 $("locate").onclick=()=>{if(st.me)map.setView(st.me,Math.max(map.getZoom(),17));else startGps(true)};
-$("togreen").onclick=()=>flyToHole(true);
-function flyToHole(force){
+$("togreen").onclick=()=>flyToHole();
+// Show the whole hole, tee at the bottom and green at the top, like a yardage book.
+function flyToHole(){
   const g=green();if(!g)return;const c=g.M||g.F||g.B;
-  if(st.me&&!force&&yards(st.me,c)<700){map.fitBounds(L.latLngBounds([st.me,c]),{...PAD,maxZoom:19});return}
-  map.setView(c,18);
+  let from=tee();
+  if(!from&&st.me&&yards(st.me,c)<700)from=st.me;   // hand-marked green with no tee: play from where you stand
+  if(!from){map.setBearing(0);map.setView(c,18);return}
+  map.setBearing(360-azimuth(from,c));              // puts the line of play straight up the screen
+  let start=from,len=yards(from,c)/YD;              // metres
+  if(st.me){const dm=yards(st.me,c)/YD;if(dm>len&&dm<len+90){start=st.me;len=dm}} // standing behind the tee
+  const avail=Math.max(200,window.innerHeight-230); // room between the yardage card and the hole switcher
+  const mpp=(len+50)/avail;
+  const z=Math.min(19.5,Math.max(14,Math.log2(156543.03*Math.cos(c[0]*Math.PI/180)/mpp)));
+  map.setView([(start[0]+c[0])/2,(start[1]+c[1])/2],z,{animate:false});
 }
 function saveNav(){store.set("nav",{course:st.course,hole:st.hole});try{history.replaceState(null,"","#"+key())}catch(e){}}
 
@@ -274,7 +287,7 @@ function startGps(center){
     if(!meMarker){meMarker=L.marker(st.me,{interactive:false,zIndexOffset:1000,icon:L.divIcon({className:"",html:'<div class="me-dot"></div>',iconSize:[18,18],iconAnchor:[9,9]})}).addTo(map);
       accCircle=L.circle(st.me,{radius:st.acc,color:"#3D8BFF",weight:1,fillOpacity:.12,interactive:false}).addTo(map)}
     else{meMarker.setLatLng(st.me);accCircle.setLatLng(st.me).setRadius(st.acc)}
-    if(first&&(center||!green())){first=false;map.setView(st.me,17)}else if(first){first=false;flyToHole()}
+    if(first&&(center||!green())){first=false;map.setView(st.me,17)}else if(first){first=false}
     draw();
   },err=>{st.gpsErr=err.code===1?"Location is off for this site. Allow it in your browser settings.":"Can't get a GPS fix yet.";draw()},
   {enableHighAccuracy:true,maximumAge:3000,timeout:20000});
@@ -288,9 +301,9 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
 $("course").innerHTML=COURSES.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
 const nav=store.get("nav");if(nav&&COURSES.some(c=>c.id===nav.course)){st.course=nav.course;st.hole=nav.hole||1}
 const m=location.hash.match(/^#([a-z]+)-(\d{1,2})$/);if(m&&COURSES.some(c=>c.id===m[1])){st.course=m[1];st.hole=Math.min(18,Math.max(1,+m[2]))}
-window.addEventListener("hashchange",()=>{const m=location.hash.match(/^#([a-z]+)-(\d{1,2})$/);if(m&&COURSES.some(c=>c.id===m[1])){st.course=m[1];st.hole=+m[2];st.pins=[];flyToHole(true);draw()}});
+window.addEventListener("hashchange",()=>{const m=location.hash.match(/^#([a-z]+)-(\d{1,2})$/);if(m&&COURSES.some(c=>c.id===m[1])){st.course=m[1];st.hole=+m[2];st.pins=[];flyToHole();draw()}});
 $("back").href=BATTLE_URL;
-loadShared().then(()=>flyToHole(true));
+loadShared().then(()=>flyToHole());
 startGps(false);wake();draw();
 </script>
 </body>

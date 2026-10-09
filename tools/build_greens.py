@@ -211,6 +211,7 @@ def main():
                                  "_note": f"green depth {round(depth)} yd"}
                     else:
                         entry = {"M": ll(g[1]), "src": "osm", "_note": f"odd green shape ({round(depth)} yd deep), middle = green center"}
+            entry["T"] = ll(line[0])  # tee end of the hole line, used to point the map up the hole
             found[key] = entry
 
     try:
@@ -221,6 +222,8 @@ def main():
     for k, v in found.items():
         if k not in out:
             out[k] = {kk: vv for kk, vv in v.items() if not kk.startswith("_")}
+        elif "T" not in out[k]:
+            out[k]["T"] = v["T"]  # hand-marked green: borrow the tee from the map
     json.dump(dict(sorted(out.items())), open("greens.json", "w"), separators=(",", ":"))
 
     names = sorted({c[3] for c in courses})
