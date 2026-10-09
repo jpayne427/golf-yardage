@@ -152,7 +152,8 @@ const COURSES=[
   {id:"pacific",name:"Pacific Dunes"}
 ];
 const RESORT=[43.196,-124.392];          // roughly the middle of the resort
-const BATTLE_URL="https://claude.ai/artifact/B2NdN94uY5yzMmXPHQaE8c";
+const BATTLE_URL="battle/";
+const EMBEDDED=window.top!==window.self;   // running inside the Battle app's Map tab
 const YD=1.0936133;
 
 /* ---- state ---- */
@@ -302,7 +303,7 @@ $("course").innerHTML=COURSES.map(c=>`<option value="${c.id}">${c.name}</option>
 const nav=store.get("nav");if(nav&&COURSES.some(c=>c.id===nav.course)){st.course=nav.course;st.hole=nav.hole||1}
 const m=location.hash.match(/^#([a-z]+)-(\d{1,2})$/);if(m&&COURSES.some(c=>c.id===m[1])){st.course=m[1];st.hole=Math.min(18,Math.max(1,+m[2]))}
 window.addEventListener("hashchange",()=>{const m=location.hash.match(/^#([a-z]+)-(\d{1,2})$/);if(m&&COURSES.some(c=>c.id===m[1])){st.course=m[1];st.hole=+m[2];st.pins=[];flyToHole();draw()}});
-$("back").href=BATTLE_URL;
+$("back").href=BATTLE_URL;if(EMBEDDED){$("back").hidden=true;document.documentElement.style.setProperty("--top","10px");document.documentElement.style.setProperty("--bot","12px")}
 loadShared().then(()=>flyToHole());
 startGps(false);wake();draw();
 </script>
