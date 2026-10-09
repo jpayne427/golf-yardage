@@ -14,46 +14,55 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-/* Full-bleed satellite map; hole bar on top, yardage panel at the bottom. Always dark so it reads over imagery and in sun glare. */
+/* Map fills the screen. Everything else floats: yardage card top-left, round buttons top-right, hole switcher bottom-center. Always dark so it reads over imagery and in sun glare. */
 :root{
-  --bg:#0D1411; --panel:rgba(13,20,17,.92); --ink:#EEF3EF; --muted:#9FB0A6; --line:rgba(255,255,255,.14);
-  --accent:#62BE8F; --me:#3D8BFF; --pin:#FFD23F; --warn:#F09A5E;
+  --panel:rgba(14,20,17,.80); --panel-solid:#16201B; --ink:#F2F6F3; --muted:#A9B8AF; --line:rgba(255,255,255,.16);
+  --accent:#62BE8F; --me:#3D8BFF; --pin:#FFD23F; --warn:#F5A66A;
   --f-display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
   --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --top:calc(env(safe-area-inset-top,0px) + 10px);
+  --bot:calc(env(safe-area-inset-bottom,0px) + 12px);
   color-scheme:dark;
 }
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+html,body{height:100%;margin:0;background:#0D1411;color:var(--ink);font-family:var(--f-body);font-size:15px;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;overflow:hidden}
 button,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 #map{position:fixed;inset:0;background:#111}
 .num{font-variant-numeric:tabular-nums}
+.glass{background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 4px 18px rgba(0,0,0,.35)}
 
-.bar{position:fixed;left:0;right:0;top:0;z-index:1000;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px 8px;background:var(--panel);border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center;backdrop-filter:blur(6px)}
-.bar select{flex:1;min-width:0;background:transparent;border:1px solid var(--line);border-radius:10px;padding:9px 8px;font-size:16px}
-.bar select option{background:#16201B}
-.holenav{display:flex;align-items:center;gap:4px}
-.holenav button{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.06);font-size:20px}
-.holenav .h{min-width:52px;text-align:center;font-family:var(--f-display);font-weight:800;font-size:28px;line-height:1}
-.holenav .h small{display:block;font-family:var(--f-body);font-size:10px;font-weight:600;letter-spacing:.1em;color:var(--muted)}
+/* Yardage card */
+.yard{position:fixed;left:12px;top:var(--top);z-index:1000;border-radius:18px;padding:8px 14px 8px 12px;min-width:118px;display:flex;flex-direction:column;gap:2px}
+.yrow{display:flex;align-items:baseline;gap:8px}
+.yrow i{font-style:normal;font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--muted);width:12px}
+.yrow b{font-family:var(--f-display);font-weight:800;font-size:26px;line-height:1}
+.yrow.m b{font-size:62px;color:#fff}
+.yrow.m i{color:var(--accent)}
+.ycap{font-size:11px;color:var(--muted);max-width:140px;line-height:1.3}
 
-.panel{position:fixed;left:0;right:0;bottom:0;z-index:1000;background:var(--panel);border-top:1px solid var(--line);padding:10px 12px calc(env(safe-area-inset-bottom,0px) + 10px);display:flex;flex-direction:column;gap:8px;backdrop-filter:blur(6px)}
-.fmb{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.fmb div{text-align:center;border-radius:10px;background:rgba(255,255,255,.05);padding:6px 4px}
-.fmb label{display:block;font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
-.fmb b{font-family:var(--f-display);font-weight:800;font-size:38px;line-height:1}
-.fmb .m b{color:var(--accent);font-size:46px}
-.msg{font-size:13px;color:var(--muted);text-align:center;min-height:18px}
-.msg.warn{color:var(--warn)}
-.tools{display:flex;gap:6px}
-.tools button{flex:1;border:1px solid var(--line);background:rgba(255,255,255,.06);border-radius:10px;padding:10px 4px;font-size:13px;font-weight:600}
-.tools button[aria-pressed="true"]{background:var(--pin);color:#111;border-color:var(--pin)}
-.tools a{flex:1;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;font-size:13px;font-weight:600;color:var(--ink);text-decoration:none}
-
-.fab{position:fixed;right:12px;z-index:1000;width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center}
+/* Right-side buttons */
+.fabs{position:fixed;right:12px;top:var(--top);z-index:1000;display:flex;flex-direction:column;gap:10px}
+.fab{width:50px;height:50px;border-radius:50%;display:grid;place-items:center;padding:0}
 .fab svg{width:22px;height:22px}
 
+/* Bottom hole switcher */
+.holebar{position:fixed;left:50%;transform:translateX(-50%);bottom:var(--bot);z-index:1000;border-radius:22px;display:flex;align-items:center;gap:4px;padding:6px}
+.holebar button.arrow{width:48px;height:48px;border-radius:16px;border:0;background:rgba(255,255,255,.08);font-size:24px}
+.hmid{position:relative;min-width:112px;text-align:center;padding:2px 6px}
+.hmid .cn{font-size:12px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:4px}
+.hmid .hn{font-family:var(--f-display);font-weight:800;font-size:34px;line-height:1}
+.hmid .hn small{font-family:var(--f-body);font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--muted);margin-right:4px;vertical-align:8px}
+.hmid select{position:absolute;inset:0;opacity:0;width:100%;height:100%;font-size:16px}
+.clear{position:fixed;left:12px;bottom:var(--bot);z-index:1000;height:48px;border-radius:16px;padding:0 14px;font-weight:600;font-size:14px}
+
+/* Status chip */
+.chip{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--bot) + 74px);z-index:1000;border-radius:999px;padding:7px 14px;font-size:13px;max-width:calc(100% - 32px);text-align:center}
+.chip.warn{color:var(--warn)}
+.chip button{margin-left:8px;border:0;background:var(--pin);color:#111;border-radius:999px;padding:3px 10px;font-weight:700;font-size:12px}
+
+/* Markers */
 .me-dot{width:18px;height:18px;border-radius:50%;background:var(--me);border:3px solid #fff;box-shadow:0 0 0 2px rgba(0,0,0,.35)}
 .pin{width:20px;height:20px;border-radius:50%;background:var(--pin);border:3px solid #111;box-shadow:0 0 0 2px rgba(255,255,255,.7)}
 .gpt{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font:700 12px var(--f-body);color:#111;border:2px solid #111}
@@ -61,56 +70,65 @@ button{cursor:pointer}
 .ylabel{background:rgba(0,0,0,.78);color:#fff;border-radius:8px;padding:3px 8px;font:800 20px var(--f-display);white-space:nowrap;border:1px solid rgba(255,255,255,.25)}
 .ylabel small{font:600 11px var(--f-body);color:#ccc;margin-left:2px}
 .leaflet-div-icon{background:none;border:0}
-.leaflet-control-attribution{font-size:9px!important;background:rgba(0,0,0,.5)!important;color:#ccc!important}
-.leaflet-control-attribution a{color:#ddd!important}
+.leaflet-control-attribution{font-size:8px!important;background:rgba(0,0,0,.4)!important;color:#bbb!important;margin-bottom:calc(env(safe-area-inset-bottom,0px) + 2px)!important}
+.leaflet-control-attribution a{color:#ccc!important}
 
-.modal{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.7);display:grid;place-items:center;padding:16px}
-.modal[hidden]{display:none}
-.modal-in{width:100%;max-width:520px;background:#16201B;border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px}
-.modal h2{font-family:var(--f-display);font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin:0;font-size:22px}
-.modal p{margin:0;color:var(--muted);font-size:14px}
-.modal textarea{width:100%;min-height:160px;background:#0D1411;border:1px solid var(--line);border-radius:8px;padding:8px;font:12px ui-monospace,Menlo,monospace}
-.row{display:flex;gap:8px;flex-wrap:wrap}
-.row button{flex:1;border:1px solid var(--line);background:rgba(255,255,255,.06);border-radius:10px;padding:10px;font-weight:600}
+/* Menu + data sheets */
+.sheet{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;padding:16px 12px var(--bot)}
+.sheet[hidden]{display:none}
+.sheet-in{width:100%;max-width:520px;background:var(--panel-solid);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.sheet h2{font-family:var(--f-display);font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin:0 0 2px;font-size:22px}
+.sheet p{margin:0;color:var(--muted);font-size:14px;line-height:1.4}
+.mitem{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);background:rgba(255,255,255,.05);border-radius:12px;padding:13px 14px;font-weight:600;text-decoration:none;color:var(--ink);text-align:left}
+.mitem span{font-weight:400;color:var(--muted);font-size:13px}
+.sheet textarea{width:100%;min-height:150px;background:#0D1411;border:1px solid var(--line);border-radius:8px;padding:8px;font:12px ui-monospace,Menlo,monospace}
+.row{display:flex;gap:8px}
+.row button{flex:1;border:1px solid var(--line);background:rgba(255,255,255,.06);border-radius:12px;padding:11px;font-weight:600}
 .row button.primary{background:var(--accent);color:#0B1410;border-color:var(--accent)}
 </style>
 </head>
 <body>
 <div id="map" role="application" aria-label="Satellite map"></div>
 
-<div class="bar">
-  <select id="course" aria-label="Course"></select>
-  <div class="holenav">
-    <button id="prev" aria-label="Previous hole">‹</button>
-    <div class="h num"><small>HOLE</small><span id="hole">1</span></div>
-    <button id="next" aria-label="Next hole">›</button>
+<div class="yard glass" aria-live="polite">
+  <div class="yrow"><i>B</i><b class="num" id="yB">–</b></div>
+  <div class="yrow m"><i>M</i><b class="num" id="yM">–</b></div>
+  <div class="yrow"><i>F</i><b class="num" id="yF">–</b></div>
+  <div class="ycap" id="ycap"></div>
+</div>
+
+<div class="fabs">
+  <button class="fab glass" id="locate" aria-label="Center on me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
+  <button class="fab glass" id="togreen" aria-label="Show the green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 21V3l11 4-11 4"/></svg></button>
+  <button class="fab glass" id="menubtn" aria-label="More"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
+</div>
+
+<div class="chip glass" id="chip" hidden></div>
+<button class="clear glass" id="clear" hidden>Clear</button>
+
+<div class="holebar glass">
+  <button class="arrow" id="prev" aria-label="Previous hole">‹</button>
+  <div class="hmid">
+    <div class="cn"><span id="cname">Sheep Ranch</span> ▾</div>
+    <div class="hn num"><small>HOLE</small><span id="hole">1</span></div>
+    <select id="course" aria-label="Course"></select>
+  </div>
+  <button class="arrow" id="next" aria-label="Next hole">›</button>
+</div>
+
+<div class="sheet" id="menu" hidden>
+  <div class="sheet-in">
+    <h2>Menu</h2>
+    <button class="mitem" id="markbtn">Mark this green <span>tap front, middle, back</span></button>
+    <button class="mitem" id="share">Share green data <span id="sharecount"></span></button>
+    <a class="mitem" id="back" href="#" target="_blank" rel="noopener">Scores &amp; matches <span>opens the Battle app ↗</span></a>
+    <p style="padding:4px 2px">For the full-screen view, add this page to your home screen: Share, then Add to Home Screen.</p>
+    <div class="row"><button id="menuclose">Close</button></div>
   </div>
 </div>
 
-<button class="fab" id="locate" aria-label="Center on me" style="top:calc(env(safe-area-inset-top,0px) + 70px)">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
-</button>
-<button class="fab" id="togreen" aria-label="Show the green" style="top:calc(env(safe-area-inset-top,0px) + 126px)">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 21V3l11 4-11 4"/></svg>
-</button>
-
-<div class="panel">
-  <div class="fmb">
-    <div><label>Front</label><b class="num" id="yF">–</b></div>
-    <div class="m"><label>Middle</label><b class="num" id="yM">–</b></div>
-    <div><label>Back</label><b class="num" id="yB">–</b></div>
-  </div>
-  <div class="msg" id="msg">Finding your location…</div>
-  <div class="tools">
-    <button id="clear">Clear pins</button>
-    <button id="markbtn" aria-pressed="false">Mark green</button>
-    <button id="share">Share data</button>
-    <a id="back" href="#" target="_blank" rel="noopener" hidden>Scores ↗</a>
-  </div>
-</div>
-
-<div class="modal" id="modal" hidden>
-  <div class="modal-in">
+<div class="sheet" id="modal" hidden>
+  <div class="sheet-in">
     <h2>Green data</h2>
     <p id="modal-p">Copy this and send it to whoever maintains the site so everyone's phone gets your marks. Or paste data from someone else and tap Load.</p>
     <textarea id="dataout" spellcheck="false" aria-label="Green data"></textarea>
@@ -148,6 +166,8 @@ L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/
 }).addTo(map);
 const lineLayer=L.layerGroup().addTo(map),greenLayer=L.layerGroup().addTo(map);
 let meMarker=null,accCircle=null;
+// keep the hole clear of the floating card (top-left) and hole switcher (bottom)
+const PAD={paddingTopLeft:[150,40],paddingBottomRight:[70,110]};
 
 /* ---- distance ---- */
 function yards(a,b){const R=6371008.8,t=Math.PI/180;
@@ -169,40 +189,39 @@ async function loadShared(){
 /* ---- drawing ---- */
 function label(latlng,txt,sub){return L.marker(latlng,{interactive:false,icon:L.divIcon({className:"",html:`<div class="ylabel">${txt}${sub?`<small>${sub}</small>`:""}</div>`,iconSize:null,iconAnchor:[-8,14]})})}
 function mid(a,b){return[(a[0]+b[0])/2,(a[1]+b[1])/2]}
-function draw(){
-  $("hole").textContent=st.hole;$("course").value=st.course;
-  greenLayer.clearLayers();lineLayer.clearLayers();
-  const g=green();
-  if(g)for(const k of ["F","M","B"])if(g[k])L.marker(g[k],{interactive:false,icon:L.divIcon({className:"",html:`<div class="gpt ${k}">${k}</div>`,iconSize:[24,24],iconAnchor:[12,12]})}).addTo(greenLayer);
-  // F/M/B readout
-  for(const k of ["F","M","B"]){$("y"+k).textContent=(st.me&&g&&g[k])?Math.round(yards(st.me,g[k])):"–"}
-  // pins and lines
-  const start=st.me||(st.pins.length>1?st.pins[0]:null);
+function drawLines(){
   const chain=st.me?[st.me,...st.pins]:st.pins;
   for(let i=1;i<chain.length;i++){
     L.polyline([chain[i-1],chain[i]],{color:"#FFD23F",weight:3,dashArray:"6 6",interactive:false}).addTo(lineLayer);
     label(mid(chain[i-1],chain[i]),Math.round(yards(chain[i-1],chain[i])),"yd").addTo(lineLayer);
   }
+}
+function draw(){
+  $("hole").textContent=st.hole;$("course").value=st.course;$("cname").textContent=courseName();
+  greenLayer.clearLayers();lineLayer.clearLayers();
+  const g=green();
+  if(g)for(const k of ["F","M","B"])if(g[k])L.marker(g[k],{interactive:false,icon:L.divIcon({className:"",html:`<div class="gpt ${k}">${k}</div>`,iconSize:[24,24],iconAnchor:[12,12]})}).addTo(greenLayer);
+  for(const k of ["F","M","B"]){$("y"+k).textContent=(st.me&&g&&g[k])?Math.round(yards(st.me,g[k])):"–"}
+  drawLines();
   st.pins.forEach((p,i)=>{
     const m=L.marker(p,{draggable:true,icon:L.divIcon({className:"",html:'<div class="pin"></div>',iconSize:[20,20],iconAnchor:[10,10]})}).addTo(lineLayer);
     m.on("drag",e=>{st.pins[i]=ll(e.target.getLatLng());redrawLines()});
     m.on("dragend",()=>draw());
   });
-  // message
-  const msg=$("msg");msg.classList.remove("warn");
-  if(st.marking){msg.textContent=`Marking ${courseName()} #${st.hole}: tap the ${["FRONT","MIDDLE","BACK"][st.markStep]} of the green`;msg.classList.add("warn")}
-  else if(!st.me){msg.textContent=st.gpsErr?st.gpsErr+" Tap two points to measure between them.":"Finding your location…";if(st.gpsErr)msg.classList.add("warn")}
-  else if(st.pins.length){const tot=Math.round(yards(st.me,st.pins[st.pins.length-1]));msg.textContent=st.pins.length>1?`${tot} yd straight to the last pin · tap to add, Clear to reset`:"Drag the pin to adjust · tap again for a layup leg"}
-  else msg.textContent=`GPS ±${Math.round((st.acc||0)*YD)} yd · tap the map for a distance`+(g?"":" · no green saved for this hole");
-  const n=Object.keys(st.local).length;$("share").textContent=n?`Share data (${n})`:"Share data";
+  $("clear").hidden=!st.pins.length||st.marking;
+  // caption under the yardages
+  $("ycap").textContent=!g?"No green saved":!st.me?"Waiting for GPS":`GPS ±${Math.round((st.acc||0)*YD)} yd`;
+  // status chip: only when there is something to say
+  const chip=$("chip");chip.classList.remove("warn");chip.hidden=false;
+  if(st.marking){chip.innerHTML=`Tap the <b>${["FRONT","MIDDLE","BACK"][st.markStep]}</b> of the green <button id="markdone">Done</button>`;chip.classList.add("warn");$("markdone").onclick=stopMarking}
+  else if(!st.me&&st.gpsErr){chip.textContent=st.gpsErr+" Tap two points to measure between them.";chip.classList.add("warn")}
+  else if(!st.me){chip.textContent="Finding your location…"}
+  else chip.hidden=true;
+  const n=Object.keys(st.local).length;$("sharecount").textContent=n?`${n} hole${n>1?"s":""} marked on this phone`:"";
 }
 function redrawLines(){ // cheap redraw during drag
   lineLayer.eachLayer(l=>{if(!(l instanceof L.Marker&&l.dragging&&l.dragging.enabled()))lineLayer.removeLayer(l)});
-  const chain=st.me?[st.me,...st.pins]:st.pins;
-  for(let i=1;i<chain.length;i++){
-    L.polyline([chain[i-1],chain[i]],{color:"#FFD23F",weight:3,dashArray:"6 6",interactive:false}).addTo(lineLayer);
-    label(mid(chain[i-1],chain[i]),Math.round(yards(chain[i-1],chain[i])),"yd").addTo(lineLayer);
-  }
+  drawLines();
 }
 const courseName=()=>COURSES.find(c=>c.id===st.course)?.name||"";
 
@@ -211,31 +230,35 @@ map.on("click",e=>{
   const p=ll(e.latlng);
   if(st.marking){
     const k=["F","M","B"][st.markStep];
-    const g={...(st.local[key()]||st.shared[key()]||{})};g[k]=[+p[0].toFixed(6),+p[1].toFixed(6)];
+    const g={...(st.local[key()]||st.shared[key()]||{})};delete g.src;g[k]=[+p[0].toFixed(6),+p[1].toFixed(6)];
     st.local[key()]=g;store.set("greens.local",st.local);
     st.markStep++;
-    if(st.markStep>2){st.markStep=0;if(st.hole<18){st.hole++;saveNav();flyToHole()}else{st.marking=false;$("markbtn").setAttribute("aria-pressed","false")}}
+    if(st.markStep>2){st.markStep=0;if(st.hole<18){st.hole++;saveNav();flyToHole(true)}else stopMarking()}
     draw();return;
   }
   if(st.pins.length>=(st.me?2:3))st.pins=[];
   st.pins.push(p);draw();
 });
+function stopMarking(){st.marking=false;st.markStep=0;draw()}
 $("clear").onclick=()=>{st.pins=[];draw()};
-$("markbtn").onclick=()=>{st.marking=!st.marking;st.markStep=0;st.pins=[];$("markbtn").setAttribute("aria-pressed",String(st.marking));if(st.marking)flyToHole(true);draw()};
+$("menubtn").onclick=()=>{$("menu").hidden=false};
+$("menuclose").onclick=()=>{$("menu").hidden=true};
+$("menu").onclick=e=>{if(e.target.id==="menu")$("menu").hidden=true};
+$("markbtn").onclick=()=>{$("menu").hidden=true;st.marking=true;st.markStep=0;st.pins=[];flyToHole(true);draw()};
 $("prev").onclick=()=>{st.hole=st.hole<=1?18:st.hole-1;st.markStep=0;st.pins=[];saveNav();flyToHole();draw()};
 $("next").onclick=()=>{st.hole=st.hole>=18?1:st.hole+1;st.markStep=0;st.pins=[];saveNav();flyToHole();draw()};
-$("course").onchange=e=>{st.course=e.target.value;st.hole=1;st.pins=[];saveNav();flyToHole();draw()};
+$("course").onchange=e=>{st.course=e.target.value;st.hole=1;st.pins=[];saveNav();flyToHole(true);draw()};
 $("locate").onclick=()=>{if(st.me)map.setView(st.me,Math.max(map.getZoom(),17));else startGps(true)};
 $("togreen").onclick=()=>flyToHole(true);
 function flyToHole(force){
   const g=green();if(!g)return;const c=g.M||g.F||g.B;
-  if(st.me&&!force&&yards(st.me,c)<700){map.fitBounds(L.latLngBounds([st.me,c]).pad(0.25),{maxZoom:19});return}
+  if(st.me&&!force&&yards(st.me,c)<700){map.fitBounds(L.latLngBounds([st.me,c]),{...PAD,maxZoom:19});return}
   map.setView(c,18);
 }
 function saveNav(){store.set("nav",{course:st.course,hole:st.hole});try{history.replaceState(null,"","#"+key())}catch(e){}}
 
 /* ---- share / import ---- */
-$("share").onclick=()=>{$("dataout").value=JSON.stringify(allGreens());$("modal").hidden=false};
+$("share").onclick=()=>{$("menu").hidden=true;$("dataout").value=JSON.stringify(allGreens());$("modal").hidden=false};
 $("close").onclick=()=>$("modal").hidden=true;
 $("copy").onclick=async()=>{const t=$("dataout");try{await navigator.clipboard.writeText(t.value);$("copy").textContent="Copied"}catch(e){t.select();$("copy").textContent="Selected, copy it"}setTimeout(()=>$("copy").textContent="Copy",2000)};
 $("load").onclick=()=>{try{const d=JSON.parse($("dataout").value);if(typeof d!=="object"||!d)throw 0;st.local={...st.local,...d};store.set("greens.local",st.local);$("modal").hidden=true;draw()}catch(e){$("modal-p").textContent="That text isn't valid green data. Paste the whole block exactly as it was copied."}};
@@ -266,7 +289,7 @@ $("course").innerHTML=COURSES.map(c=>`<option value="${c.id}">${c.name}</option>
 const nav=store.get("nav");if(nav&&COURSES.some(c=>c.id===nav.course)){st.course=nav.course;st.hole=nav.hole||1}
 const m=location.hash.match(/^#([a-z]+)-(\d{1,2})$/);if(m&&COURSES.some(c=>c.id===m[1])){st.course=m[1];st.hole=Math.min(18,Math.max(1,+m[2]))}
 window.addEventListener("hashchange",()=>{const m=location.hash.match(/^#([a-z]+)-(\d{1,2})$/);if(m&&COURSES.some(c=>c.id===m[1])){st.course=m[1];st.hole=+m[2];st.pins=[];flyToHole(true);draw()}});
-if(BATTLE_URL){$("back").href=BATTLE_URL;$("back").hidden=false}
+$("back").href=BATTLE_URL;
 loadShared().then(()=>flyToHole(true));
 startGps(false);wake();draw();
 </script>

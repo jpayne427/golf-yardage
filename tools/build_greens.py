@@ -5,7 +5,7 @@ Bandon Dunes resort. Front/back are where the line of play, extended through
 the green's center, crosses the green's edge. Entries already in greens.json
 that were not generated here (no "src": "osm") are kept as-is.
 """
-import json, math, re, urllib.parse, urllib.request
+import json, math, re, time, traceback, urllib.parse, urllib.request
 
 BBOX = (43.14, -124.44, 43.25, -124.35)  # south, west, north, east
 COURSES = [  # (id, name pattern) - first match wins; None = ignore
@@ -16,7 +16,8 @@ COURSES = [  # (id, name pattern) - first match wins; None = ignore
     ("pacific", r"pacific"),
     ("dunes", r"bandon dunes"),
 ]
-ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]
+ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter",
+             "https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]
 
 def overpass():
     s, w, n, e = BBOX
@@ -27,16 +28,23 @@ def overpass():
       way["leisure"="golf_course"]({s},{w},{n},{e});
       relation["leisure"="golf_course"]({s},{w},{n},{e}); );
     out geom;"""
-    last = None
-    for url in ENDPOINTS:
-        try:
-            req = urllib.request.Request(url, data=urllib.parse.urlencode({"data": q}).encode(),
-                                         headers={"User-Agent": "golf-yardage-builder"})
-            with urllib.request.urlopen(req, timeout=180) as r:
-                return json.load(r)["elements"]
-        except Exception as ex:  # try the next mirror
-            last = ex
-    raise SystemExit(f"Overpass failed: {last}")
+    errors = []
+    for attempt in range(2):
+        for url in ENDPOINTS:
+            try:
+                req = urllib.request.Request(url, data=urllib.parse.urlencode({"data": q}).encode(), headers={
+                    "User-Agent": "golf-yardage-builder (github.com/jpayne427/golf-yardage)",
+                    "Accept": "application/json"})
+                with urllib.request.urlopen(req, timeout=180) as r:
+                    return json.load(r)["elements"]
+            except Exception as ex:  # try the next mirror
+                body = ""
+                if hasattr(ex, "read"):
+                    try: body = ex.read()[:300].decode("utf-8", "replace")
+                    except Exception: pass
+                errors.append(f"{url}: {ex} {body}".strip())
+        time.sleep(20)
+    raise RuntimeError("Overpass failed:\n" + "\n".join(errors))
 
 # local flat projection (metres) around the resort
 LAT0 = (BBOX[0] + BBOX[2]) / 2
@@ -169,4 +177,9 @@ def main():
     print("\n".join(report))
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        # leave the error where it can be read from the repo, without failing the run
+        open("greens-report.txt", "w").write("FAILED\n" + traceback.format_exc())
+        print(open("greens-report.txt").read())
