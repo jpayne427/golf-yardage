@@ -174,6 +174,12 @@ details.card[open]>summary::after{content:"－"}
 .result.t1{background:var(--t1-soft)} .result.t1 .rt{color:var(--t1)}
 .result.t2{background:var(--t2-soft)} .result.t2 .rt{color:var(--t2)}
 
+.install{position:fixed;left:0;right:0;bottom:calc(49px + env(safe-area-inset-bottom,0px));z-index:7;background:#14263D;color:#fff;display:flex;align-items:center;gap:12px;padding:12px 8px 12px 14px;box-shadow:0 -2px 12px rgba(0,0,0,.2)}
+.install img{width:34px;height:34px;border-radius:8px;flex:none}
+.install p{margin:0;flex:1;font-size:15px;line-height:1.35}
+.install svg.share{width:17px;height:17px;vertical-align:-3px;margin:0 2px}
+.install .x{border:0;background:none;color:rgba(255,255,255,.75);font-size:26px;width:40px;height:40px;flex:none;line-height:1}
+.install .go{border:0;background:#62BE8F;color:#0B1410;font-weight:700;border-radius:8px;padding:8px 12px;flex:none}
 .toast{position:fixed;left:16px;right:16px;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:20;max-width:480px;margin:0 auto;background:var(--ink);color:var(--bg);border-radius:10px;padding:10px 14px;font-size:14px}
 .empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);padding:18px;text-align:center;color:var(--muted)}
 @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important}}
@@ -204,6 +210,12 @@ body{margin:0}
   <button data-tab="setup">Setup</button>
 </nav>
 <div id="sheet" class="sheet" hidden></div>
+<div id="install" class="install" hidden role="note">
+  <img src="../icon.svg" alt="">
+  <p id="install-text"></p>
+  <button class="go" id="install-go" hidden>Install</button>
+  <button class="x" id="install-x" aria-label="Dismiss">×</button>
+</div>
 <div id="toast" class="toast" hidden></div>
 <div id="pinbox" class="pinbox" hidden>
   <form class="card" id="pinform">
@@ -855,6 +867,22 @@ async function boot(){
   setInterval(()=>{if(document.visibilityState==="visible")db.loadAll().catch(()=>{})},60000);
   if(S.tab==="score")wake();
 }
+/* "Add to Home Screen" nudge: only in a normal browser tab, until dismissed */
+(function(){
+  const standalone=window.navigator.standalone||matchMedia("(display-mode: standalone)").matches;
+  if(standalone||window.top!==window.self||ls.get("installDismissed"))return;
+  const el=$("#install"),txt=$("#install-text");
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+  const shareIcon='<svg class="share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Share"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
+  if(ios)txt.innerHTML=`Get the full-screen app: tap Share ${shareIcon}, then <b>Add to Home Screen</b>.`;
+  else if(/android/i.test(navigator.userAgent))txt.innerHTML="Get the full-screen app: tap the browser menu <b>⋮</b>, then <b>Add to Home screen</b>.";
+  else return; // desktop: no nudge
+  let deferred=null;
+  window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferred=e;txt.innerHTML="Get the full-screen app on your home screen.";$("#install-go").hidden=false});
+  $("#install-go").onclick=async()=>{if(!deferred)return;deferred.prompt();try{await deferred.userChoice}catch(e){}deferred=null;el.hidden=true};
+  $("#install-x").onclick=()=>{el.hidden=true;ls.set("installDismissed","1")};
+  el.hidden=false;
+})();
 boot();
 </script>
 </body>
