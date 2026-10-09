@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0D1411">
+<link rel="icon" type="image/png" href="../brand/favicon-64.png">
+<link rel="apple-touch-icon" href="../brand/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="ShipStiffs Map">
+<title>ShipStiffs Yardage</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Map fills the screen. Everything else floats: yardage card top-left, round buttons top-right, hole switcher bottom-center. Always dark so it reads over imagery and in sun glare. */
+:root{
+  --panel:rgba(14,20,17,.80); --panel-solid:#16201B; --ink:#F2F6F3; --muted:#A9B8AF; --line:rgba(255,255,255,.16);
+  --accent:#62BE8F; --me:#3D8BFF; --pin:#FFD23F; --warn:#F5A66A;
+  --f-display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --top:calc(env(safe-area-inset-top,0px) + 10px);
+  --bot:calc(env(safe-area-inset-bottom,0px) + 12px);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:#0D1411;color:var(--ink);font-family:var(--f-body);font-size:15px;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;overflow:hidden}
+button,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#map{position:fixed;inset:0;background:#111}
+.num{font-variant-numeric:tabular-nums}
+.glass{background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 4px 18px rgba(0,0,0,.35)}
+
+/* Yardage card */
+.yard{position:fixed;left:12px;top:var(--top);z-index:1000;border-radius:18px;padding:8px 14px 8px 12px;min-width:118px;display:flex;flex-direction:column;gap:2px}
+.yrow{display:flex;align-items:baseline;gap:8px}
+.yrow i{font-style:normal;font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--muted);width:12px}
+.yrow b{font-family:var(--f-display);font-weight:800;font-size:26px;line-height:1}
+.yrow.m b{font-size:62px;color:#fff}
+.yrow.m i{color:var(--accent)}
+.ycap{font-size:11px;color:var(--muted);max-width:140px;line-height:1.3}
+
+/* Right-side buttons */
+.fabs{position:fixed;right:12px;top:var(--top);z-index:1000;display:flex;flex-direction:column;gap:10px}
+.fab{width:50px;height:50px;border-radius:50%;display:grid;place-items:center;padding:0}
+.fab svg{width:22px;height:22px}
+
+/* Bottom hole switcher */
+.holebar{position:fixed;left:50%;transform:translateX(-50%);bottom:var(--bot);z-index:1000;border-radius:22px;display:flex;align-items:center;gap:4px;padding:6px}
+.holebar button.arrow{width:48px;height:48px;border-radius:16px;border:0;background:rgba(255,255,255,.08);font-size:24px}
+.hmid{position:relative;min-width:112px;text-align:center;padding:2px 6px}
+.hmid .cn{font-size:12px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:4px}
+.hmid .hn{font-family:var(--f-display);font-weight:800;font-size:34px;line-height:1}
+.hmid .hn small{font-family:var(--f-body);font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--muted);margin-right:4px;vertical-align:8px}
+.hmid select{position:absolute;inset:0;opacity:0;width:100%;height:100%;font-size:16px}
+.clear{position:fixed;left:12px;bottom:var(--bot);z-index:1000;height:48px;border-radius:16px;padding:0 14px;font-weight:600;font-size:14px}
+
+/* Status chip */
+.chip{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--bot) + 74px);z-index:1000;border-radius:999px;padding:7px 14px;font-size:13px;max-width:calc(100% - 32px);text-align:center}
+.chip.warn{color:var(--warn)}
+.chip button{margin-left:8px;border:0;background:var(--pin);color:#111;border-radius:999px;padding:3px 10px;font-weight:700;font-size:12px}
+
+/* Markers */
+.me-dot{width:18px;height:18px;border-radius:50%;background:var(--me);border:3px solid #fff;box-shadow:0 0 0 2px rgba(0,0,0,.35)}
+.pin{width:20px;height:20px;border-radius:50%;background:var(--pin);border:3px solid #111;box-shadow:0 0 0 2px rgba(255,255,255,.7)}
+.gpt{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font:700 12px var(--f-body);color:#111;border:2px solid #111}
+.gpt.F{background:#CDEFD9}.gpt.M{background:var(--accent)}.gpt.B{background:#2E7A55;color:#fff}
+.ylabel{background:rgba(0,0,0,.78);color:#fff;border-radius:8px;padding:3px 8px;font:800 20px var(--f-display);white-space:nowrap;border:1px solid rgba(255,255,255,.25)}
+.ylabel small{font:600 11px var(--f-body);color:#ccc;margin-left:2px}
+.leaflet-div-icon{background:none;border:0}
+.leaflet-control-attribution{font-size:8px!important;background:rgba(0,0,0,.4)!important;color:#bbb!important;margin-bottom:calc(env(safe-area-inset-bottom,0px) + 2px)!important}
+.leaflet-control-attribution a{color:#ccc!important}
+
+/* Menu + data sheets */
+.sheet{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;padding:16px 12px var(--bot)}
+.sheet[hidden]{display:none}
+.sheet-in{width:100%;max-width:520px;background:var(--panel-solid);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.sheet h2{font-family:var(--f-display);font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin:0 0 2px;font-size:22px}
+.sheet p{margin:0;color:var(--muted);font-size:14px;line-height:1.4}
+.mitem{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);background:rgba(255,255,255,.05);border-radius:12px;padding:13px 14px;font-weight:600;text-decoration:none;color:var(--ink);text-align:left}
+.mitem span{font-weight:400;color:var(--muted);font-size:13px}
+.sheet textarea{width:100%;min-height:150px;background:#0D1411;border:1px solid var(--line);border-radius:8px;padding:8px;font:12px ui-monospace,Menlo,monospace}
+.row{display:flex;gap:8px}
+.row button{flex:1;border:1px solid var(--line);background:rgba(255,255,255,.06);border-radius:12px;padding:11px;font-weight:600}
+.row button.primary{background:var(--accent);color:#0B1410;border-color:var(--accent)}
+</style>
+</head>
+<body>
+<div id="map" role="application" aria-label="Satellite map"></div>
+
+<div class="yard glass" aria-live="polite">
+  <div class="yrow"><i>B</i><b class="num" id="yB">–</b></div>
+  <div class="yrow m"><i>M</i><b class="num" id="yM">–</b></div>
+  <div class="yrow"><i>F</i><b class="num" id="yF">–</b></div>
+  <div class="ycap" id="ycap"></div>
+</div>
+
+<div class="fabs">
+  <button class="fab glass" id="locate" aria-label="Center on me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
+  <button class="fab glass" id="togreen" aria-label="Show the whole hole"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 21V3l11 4-11 4"/></svg></button>
+  <button class="fab glass" id="menubtn" aria-label="More"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
+</div>
+
+<div class="chip glass" id="chip" hidden></div>
+<button class="clear glass" id="clear" hidden>Clear</button>
+
+<div class="holebar glass">
+  <button class="arrow" id="prev" aria-label="Previous hole">‹</button>
+  <div class="hmid">
+    <div class="cn"><span id="cname">Sheep Ranch</span> ▾</div>
+    <div class="hn num"><small>HOLE</small><span id="hole">1</span></div>
+    <select id="course" aria-label="Course"></select>
+  </div>
+  <button class="arrow" id="next" aria-label="Next hole">›</button>
+</div>
+
+<div class="sheet" id="menu" hidden>
+  <div class="sheet-in">
+    <div style="display:flex;align-items:center;gap:12px"><img src="../brand/logo-200.png" alt="ShipStiffs" style="height:52px;width:auto"><h2>ShipStiffs Yardage</h2></div>
+    <button class="mitem" id="markbtn">Mark this green <span>tap front, middle, back</span></button>
+    <button class="mitem" id="share">Share green data <span id="sharecount"></span></button>
+    <a class="mitem" id="back" href="#" target="_blank" rel="noopener">Scores &amp; matches <span>opens the Battle app ↗</span></a>
+    <p style="padding:4px 2px">For the full-screen view, add this page to your home screen: Share, then Add to Home Screen.</p>
+    <div class="row"><button id="menuclose">Close</button></div>
+  </div>
+</div>
+
+<div class="sheet" id="modal" hidden>
+  <div class="sheet-in">
+    <h2>Green data</h2>
+    <p id="modal-p">Copy this and send it to whoever maintains the site so everyone's phone gets your marks. Or paste data from someone else and tap Load.</p>
+    <textarea id="dataout" spellcheck="false" aria-label="Green data"></textarea>
+    <div class="row">
+      <button class="primary" id="copy">Copy</button>
+      <button id="load">Load pasted</button>
+      <button id="close">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
+<script>
+/* ---- config ---- */
+const COURSES=[
+  {id:"sheep",name:"Sheep Ranch"},
+  {id:"trails",name:"Bandon Trails"},
+  {id:"oldmac",name:"Old Macdonald"},
+  {id:"dunes",name:"Bandon Dunes"},
+  {id:"pacific",name:"Pacific Dunes"}
+];
+const RESORT=[43.196,-124.392];          // roughly the middle of the resort
+const BATTLE_URL="../";
+const EMBEDDED=window.top!==window.self;   // running inside the Battle app's Map tab
+const YD=1.0936133;
+
+/* ---- state ---- */
+const st={course:"sheep",hole:1,me:null,acc:null,pins:[],marking:false,markStep:0,shared:{},local:{}};
+const $=id=>document.getElementById(id);
+const store={get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+/* ---- map ---- */
+const map=L.map("map",{zoomControl:false,attributionControl:true,tap:true,maxZoom:21,zoomSnap:0.25,
+  rotate:true,bearing:0,touchRotate:false,rotateControl:false,shiftKeyRotate:false}).setView(RESORT,15);
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{
+  maxNativeZoom:19,maxZoom:21,attribution:"Imagery © Esri, Maxar, Earthstar Geographics"
+}).addTo(map);
+const lineLayer=L.layerGroup().addTo(map),greenLayer=L.layerGroup().addTo(map);
+let meMarker=null,accCircle=null;
+
+/* ---- distance ---- */
+function yards(a,b){const R=6371008.8,t=Math.PI/180;
+  const dLat=(b[0]-a[0])*t,dLon=(b[1]-a[1])*t;
+  const h=Math.sin(dLat/2)**2+Math.cos(a[0]*t)*Math.cos(b[0]*t)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h))*YD}
+const ll=p=>[p.lat,p.lng];
+
+/* ---- greens data ---- */
+const key=()=>st.course+"-"+st.hole;
+function green(){return st.local[key()]||st.shared[key()]||null}
+function tee(){return st.local[key()]?.T||st.shared[key()]?.T||null}
+function azimuth(a,b){const t=Math.PI/180,y=Math.sin((b[1]-a[1])*t)*Math.cos(b[0]*t),
+  x=Math.cos(a[0]*t)*Math.sin(b[0]*t)-Math.sin(a[0]*t)*Math.cos(b[0]*t)*Math.cos((b[1]-a[1])*t);
+  return(Math.atan2(y,x)/t+360)%360}
+function allGreens(){return{...st.shared,...st.local}}
+async function loadShared(){
+  try{const r=await fetch("../greens.json",{cache:"no-cache"});if(r.ok)st.shared=await r.json()}catch(e){}
+  st.local=store.get("greens.local")||{};
+  draw();
+}
+
+/* ---- drawing ---- */
+function label(latlng,txt,sub){return L.marker(latlng,{interactive:false,icon:L.divIcon({className:"",html:`<div class="ylabel">${txt}${sub?`<small>${sub}</small>`:""}</div>`,iconSize:null,iconAnchor:[-8,14]})})}
+function mid(a,b){return[(a[0]+b[0])/2,(a[1]+b[1])/2]}
+function drawLines(){
+  const chain=st.me?[st.me,...st.pins]:st.pins;
+  for(let i=1;i<chain.length;i++){
+    L.polyline([chain[i-1],chain[i]],{color:"#FFD23F",weight:3,dashArray:"6 6",interactive:false}).addTo(lineLayer);
+    label(mid(chain[i-1],chain[i]),Math.round(yards(chain[i-1],chain[i])),"yd").addTo(lineLayer);
+  }
+}
+function draw(){
+  $("hole").textContent=st.hole;$("course").value=st.course;$("cname").textContent=courseName();
+  greenLayer.clearLayers();lineLayer.clearLayers();
+  const g=green();
+  if(g)for(const k of ["F","M","B"])if(g[k])L.marker(g[k],{interactive:false,icon:L.divIcon({className:"",html:`<div class="gpt ${k}">${k}</div>`,iconSize:[24,24],iconAnchor:[12,12]})}).addTo(greenLayer);
+  for(const k of ["F","M","B"]){$("y"+k).textContent=(st.me&&g&&g[k])?Math.round(yards(st.me,g[k])):"–"}
+  drawLines();
+  st.pins.forEach((p,i)=>{
+    const m=L.marker(p,{draggable:true,icon:L.divIcon({className:"",html:'<div class="pin"></div>',iconSize:[20,20],iconAnchor:[10,10]})}).addTo(lineLayer);
+    m.on("drag",e=>{st.pins[i]=ll(e.target.getLatLng());redrawLines()});
+    m.on("dragend",()=>draw());
+  });
+  $("clear").hidden=!st.pins.length||st.marking;
+  // caption under the yardages
+  $("ycap").textContent=!g?"No green saved":!st.me?"Waiting for GPS":`GPS ±${Math.round((st.acc||0)*YD)} yd`;
+  // status chip: only when there is something to say
+  const chip=$("chip");chip.classList.remove("warn");chip.hidden=false;
+  if(st.marking){chip.innerHTML=`Tap the <b>${["FRONT","MIDDLE","BACK"][st.markStep]}</b> of the green <button id="markdone">Done</button>`;chip.classList.add("warn");$("markdone").onclick=stopMarking}
+  else if(!st.me&&st.gpsErr){chip.textContent=st.gpsErr+" Tap two points to measure between them.";chip.classList.add("warn")}
+  else if(!st.me){chip.textContent="Finding your location…"}
+  else chip.hidden=true;
+  const n=Object.keys(st.local).length;$("sharecount").textContent=n?`${n} hole${n>1?"s":""} marked on this phone`:"";
+}
+function redrawLines(){ // cheap redraw during drag
+  lineLayer.eachLayer(l=>{if(!(l instanceof L.Marker&&l.dragging&&l.dragging.enabled()))lineLayer.removeLayer(l)});
+  drawLines();
+}
+const courseName=()=>COURSES.find(c=>c.id===st.course)?.name||"";
+
+/* ---- interactions ---- */
+map.on("click",e=>{
+  const p=ll(e.latlng);
+  if(st.marking){
+    const k=["F","M","B"][st.markStep];
+    const g={...(st.local[key()]||st.shared[key()]||{})};delete g.src;if(!g.T&&st.shared[key()]?.T)g.T=st.shared[key()].T;g[k]=[+p[0].toFixed(6),+p[1].toFixed(6)];
+    st.local[key()]=g;store.set("greens.local",st.local);
+    st.markStep++;
+    if(st.markStep>2){st.markStep=0;if(st.hole<18){st.hole++;saveNav();flyToHole()}else stopMarking()}
+    draw();return;
+  }
+  if(st.pins.length>=(st.me?2:3))st.pins=[];
+  st.pins.push(p);draw();
+});
+function stopMarking(){st.marking=false;st.markStep=0;draw()}
+$("clear").onclick=()=>{st.pins=[];draw()};
+$("menubtn").onclick=()=>{$("menu").hidden=false};
+$("menuclose").onclick=()=>{$("menu").hidden=true};
+$("menu").onclick=e=>{if(e.target.id==="menu")$("menu").hidden=true};
+$("markbtn").onclick=()=>{$("menu").hidden=true;st.marking=true;st.markStep=0;st.pins=[];flyToHole();draw()};
+$("prev").onclick=()=>{st.hole=st.hole<=1?18:st.hole-1;st.markStep=0;st.pins=[];saveNav();flyToHole();draw()};
+$("next").onclick=()=>{st.hole=st.hole>=18?1:st.hole+1;st.markStep=0;st.pins=[];saveNav();flyToHole();draw()};
+$("course").onchange=e=>{st.course=e.target.value;st.hole=1;st.pins=[];saveNav();flyToHole();draw()};
+$("locate").onclick=()=>{if(st.me)map.setView(st.me,Math.max(map.getZoom(),17));else startGps(true)};
+$("togreen").onclick=()=>flyToHole();
+// Show the whole hole, tee at the bottom and green at the top, like a yardage book.
+function flyToHole(){
+  const g=green();if(!g)return;const c=g.M||g.F||g.B;
+  let from=tee();
+  if(!from&&st.me&&yards(st.me,c)<700)from=st.me;   // hand-marked green with no tee: play from where you stand
+  if(!from){map.setBearing(0);map.setView(c,18);return}
+  map.setBearing(360-azimuth(from,c));              // puts the line of play straight up the screen
+  let start=from,len=yards(from,c)/YD;              // metres
+  if(st.me){const dm=yards(st.me,c)/YD;if(dm>len&&dm<len+90){start=st.me;len=dm}} // standing behind the tee
+  const avail=Math.max(200,window.innerHeight-230); // room between the yardage card and the hole switcher
+  const mpp=(len+50)/avail;
+  const z=Math.min(19.5,Math.max(14,Math.log2(156543.03*Math.cos(c[0]*Math.PI/180)/mpp)));
+  map.setView([(start[0]+c[0])/2,(start[1]+c[1])/2],z,{animate:false});
+}
+function saveNav(){store.set("nav",{course:st.course,hole:st.hole});try{history.replaceState(null,"","#"+key())}catch(e){}}
+
+/* ---- share / import ---- */
+$("share").onclick=()=>{$("menu").hidden=true;$("dataout").value=JSON.stringify(allGreens());$("modal").hidden=false};
+$("close").onclick=()=>$("modal").hidden=true;
+$("copy").onclick=async()=>{const t=$("dataout");try{await navigator.clipboard.writeText(t.value);$("copy").textContent="Copied"}catch(e){t.select();$("copy").textContent="Selected, copy it"}setTimeout(()=>$("copy").textContent="Copy",2000)};
+$("load").onclick=()=>{try{const d=JSON.parse($("dataout").value);if(typeof d!=="object"||!d)throw 0;st.local={...st.local,...d};store.set("greens.local",st.local);$("modal").hidden=true;draw()}catch(e){$("modal-p").textContent="That text isn't valid green data. Paste the whole block exactly as it was copied."}};
+
+/* ---- GPS ---- */
+let watchId=null;
+function startGps(center){
+  if(!navigator.geolocation){st.gpsErr="This browser has no GPS access.";draw();return}
+  if(watchId!=null)navigator.geolocation.clearWatch(watchId);
+  let first=true;
+  watchId=navigator.geolocation.watchPosition(pos=>{
+    st.me=[pos.coords.latitude,pos.coords.longitude];st.acc=pos.coords.accuracy;st.gpsErr=null;
+    if(!meMarker){meMarker=L.marker(st.me,{interactive:false,zIndexOffset:1000,icon:L.divIcon({className:"",html:'<div class="me-dot"></div>',iconSize:[18,18],iconAnchor:[9,9]})}).addTo(map);
+      accCircle=L.circle(st.me,{radius:st.acc,color:"#3D8BFF",weight:1,fillOpacity:.12,interactive:false}).addTo(map)}
+    else{meMarker.setLatLng(st.me);accCircle.setLatLng(st.me).setRadius(st.acc)}
+    if(first&&(center||!green())){first=false;map.setView(st.me,17)}else if(first){first=false}
+    draw();
+  },err=>{st.gpsErr=err.code===1?"Location is off for this site. Allow it in your browser settings.":"Can't get a GPS fix yet.";draw()},
+  {enableHighAccuracy:true,maximumAge:3000,timeout:20000});
+}
+
+/* ---- wake lock ---- */
+let wl=null;async function wake(){try{if(!wl&&navigator.wakeLock){wl=await navigator.wakeLock.request("screen");wl.addEventListener("release",()=>wl=null)}}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")wake()});
+
+/* ---- boot ---- */
+$("course").innerHTML=COURSES.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
+const nav=store.get("nav");if(nav&&COURSES.some(c=>c.id===nav.course)){st.course=nav.course;st.hole=nav.hole||1}
+const m=location.hash.match(/^#([a-z]+)-(\d{1,2})$/);if(m&&COURSES.some(c=>c.id===m[1])){st.course=m[1];st.hole=Math.min(18,Math.max(1,+m[2]))}
+window.addEventListener("hashchange",()=>{const m=location.hash.match(/^#([a-z]+)-(\d{1,2})$/);if(m&&COURSES.some(c=>c.id===m[1])){st.course=m[1];st.hole=+m[2];st.pins=[];flyToHole();draw()}});
+$("back").href=BATTLE_URL;if(EMBEDDED){$("back").hidden=true;document.documentElement.style.setProperty("--top","10px");document.documentElement.style.setProperty("--bot","12px")}
+loadShared().then(()=>flyToHole());
+startGps(false);wake();draw();
+</script>
+</body>
+</html>

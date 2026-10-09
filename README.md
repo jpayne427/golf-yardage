@@ -1,7 +1,8 @@
 # ShipStiffs
 
-GPS yardage map for the Bandon 2026 Team Battle. Satellite imagery, a "you are here" dot, tap-anywhere distances in yards, and saved front/middle/back of each green.
+Golf-trip app for the group: live team scoring (match play, Stableford, skins) and a GPS yardage map.
 
-- Open on a phone and add it to the home screen.
-- Deep link to a hole: `#oldmac-7` (course ids: sheep, trails, oldmac, dunes, pacific).
-- Green marks live in `greens.json`. Marks made on a phone stay on that phone until they're copied into `greens.json` (use **Share data** on the phone, then commit the text).
+- `/` – the scoring app (Battle). Data lives in Supabase (`config.js`); anyone can view, the trip PIN unlocks scoring.
+- `/map/` – satellite yardage map with GPS, tap-for-yards, and front/middle/back of each green. Deep link a hole with `map/#oldmac-7` (course ids: sheep, trails, oldmac, dunes, pacific).
+- `greens.json` – green and tee positions, rebuilt from OpenStreetMap by the "Build greens" GitHub Action (`tools/build_greens.py`). Hand-marked greens (no `"src": "osm"`) are kept.
+- `brand/` – logo and app icons.
