@@ -1,4 +1,4 @@
-# Golf Yardage
+# ShipStiffs
 
 GPS yardage map for the Bandon 2026 Team Battle. Satellite imagery, a "you are here" dot, tap-anywhere distances in yards, and saved front/middle/back of each green.
 

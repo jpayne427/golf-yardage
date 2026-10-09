@@ -5,11 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#1E5A42">
+<meta name="theme-color" content="#064C34">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="../icon.svg">
-<link rel="apple-touch-icon" href="../icon.svg">
-<title>Bandon Team Battle</title>
+<link rel="icon" type="image/png" href="../brand/favicon-64.png">
+<link rel="apple-touch-icon" href="../brand/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="ShipStiffs">
+<title>ShipStiffs · Bandon 2026</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
@@ -42,7 +43,13 @@ button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .num{font-variant-numeric:tabular-nums}
 
-.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:6px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brandwrap{display:flex;align-items:center;gap:10px;min-width:0}
+.brandwrap .brand{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brandwrap img{height:44px;width:auto;flex:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.15))}
+.brand small{display:block;font-family:var(--f-body);font-size:11px;font-weight:600;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:2px}
+.splash{display:flex;flex-direction:column;align-items:center;gap:14px;padding:48px 16px;color:var(--muted)}
+.splash img{width:150px;height:auto}
 .brand{font-family:var(--f-display);font-weight:800;font-size:22px;letter-spacing:.02em;text-transform:uppercase;line-height:1}
 .brand span{color:var(--muted);font-weight:600}
 .sync{font-size:12px;color:var(--muted);white-space:nowrap}
@@ -197,10 +204,10 @@ body{margin:0}
 <body>
 
 <header class="top">
-  <div class="brand">Bandon 2026 <span>Team Battle</span></div>
+  <div class="brandwrap"><img src="../brand/logo-200.png" alt="ShipStiffs"><div class="brand"><small>ShipStiffs</small>Bandon 2026 <span>Team Battle</span></div></div>
   <div id="sync" class="sync">Connecting…</div>
 </header>
-<main id="main"><div class="empty">Loading the scoreboard…</div></main>
+<main id="main"><div class="splash"><img src="../brand/logo.png" alt="ShipStiffs">Loading the scoreboard…</div></main>
 <nav class="tabs" id="tabs">
   <button data-tab="board">Board</button>
   <button data-tab="score">Score</button>
@@ -211,7 +218,7 @@ body{margin:0}
 </nav>
 <div id="sheet" class="sheet" hidden></div>
 <div id="install" class="install" hidden role="note">
-  <img src="../icon.svg" alt="">
+  <img src="../brand/icon-192.png" alt="">
   <p id="install-text"></p>
   <button class="go" id="install-go" hidden>Install</button>
   <button class="x" id="install-x" aria-label="Dismiss">×</button>
@@ -693,7 +700,7 @@ function render(){
   document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-current",String(b.dataset.tab===S.tab)));
   const main=$("#main");
   if(S.err){main.innerHTML=`<div class="empty">${esc(S.err)}</div>`;return}
-  if(S.loaded<5){main.innerHTML=`<div class="empty">Loading the scoreboard…</div>`;return}
+  if(S.loaded<5){if(!main.querySelector(".splash"))main.innerHTML=`<div class="splash"><img src="../brand/logo.png" alt="ShipStiffs">Loading the scoreboard…</div>`;return}
   const lockBanner=S.readOnly?`<div class="banner" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span><b>View only.</b> Enter the trip PIN to keep score.</span><button class="btn primary" data-act="pin" style="padding:8px 12px">Enter PIN</button></div>`:"";
   if(!S.setup){main.innerHTML=`<div class="empty">The tournament hasn't been set up yet. The organizer's data will appear here once it's added.</div>`;return}
   const hs=$("#hchips")?.scrollLeft,rs=$("#rchips")?.scrollLeft;
