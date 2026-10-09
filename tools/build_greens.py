@@ -16,6 +16,13 @@ COURSES = [  # (id, name pattern) - first match wins; None = ignore
     ("pacific", r"pacific"),
     ("dunes", r"bandon dunes"),
 ]
+# card pars, used to check which routing belongs to which course
+PARS = {
+    "sheep":  [5,4,3,4,3,4,3,4,4,4,5,4,5,4,4,3,4,5],
+    "trails": [4,3,5,4,3,4,4,4,5,4,4,3,4,4,4,5,3,4],
+    "oldmac": [4,3,4,4,3,5,4,3,4,4,4,3,4,4,5,4,5,4],
+    "dunes":  [4,3,5,4,4,3,4,4,5,4,4,3,5,4,3,4,4,5],
+}
 ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter",
              "https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]
 
@@ -117,40 +124,88 @@ def main():
         elif t.get("golf") == "hole" and el.get("geometry"):
             holes.append((t, [xy((g["lat"], g["lon"])) for g in el["geometry"]]))
 
-    found, report = {}, []
+    report = []
+    # holes inside non-championship areas (Preserve, Shorty's, practice) are dropped
+    def skip(pt):
+        return any(c[0] is None and inside(pt, c[2]) for c in courses)
+    H = []
     for t, line in holes:
         ref = re.match(r"\d+", t.get("ref", "") or "")
         if not ref or len(line) < 2: continue
         n = int(ref.group())
-        if not 1 <= n <= 18: continue
-        end = line[-1]
-        hits = sorted([c for c in courses if inside(end, c[2])], key=lambda c: c[1])
-        cid = hits[0][0] if hits else course_id(t.get("golf:course:name") or t.get("course"))[0]
+        if 1 <= n <= 18 and not skip(line[-1]):
+            H.append({"n": n, "line": line, "len": sum(math.dist(line[i], line[i-1]) for i in range(1, len(line)))})
+    # follow each routing: green of hole n -> nearest tee of hole n+1
+    used, chains = set(), []
+    for h in sorted([h for h in H if h["n"] == 1], key=lambda h: -h["len"]):
+        if id(h) in used: continue
+        chain, cur = [h], h
+        used.add(id(h))
+        while cur["n"] < 18:
+            cands = [x for x in H if x["n"] == cur["n"] + 1 and id(x) not in used]
+            if not cands: break
+            nx = min(cands, key=lambda x: math.dist(x["line"][0], cur["line"][-1]))
+            if math.dist(nx["line"][0], cur["line"][-1]) > 450: break
+            chain.append(nx); used.add(id(nx)); cur = nx
+        if len(chain) >= 9: chains.append(chain)
+    # label chains: named course outline first, then north-to-south for the resort courses
+    def named(chain):
+        votes = {}
+        for h in chain:
+            hits = sorted([c for c in courses if c[0] and inside(h["line"][-1], c[2])], key=lambda c: c[1])
+            if hits and hits[0][0] in ("sheep", "trails"):
+                votes[hits[0][0]] = votes.get(hits[0][0], 0) + 1
+        return max(votes, key=votes.get) if votes else None
+    def par_of(yd): return 3 if yd < 250 else 5 if yd > 475 else 4
+    def par_match(chain, cid):
+        if cid not in PARS: return None
+        return sum(1 for h in chain if par_of(h["len"] * 1.0936) == PARS[cid][h["n"] - 1])
+    labels, rest = {}, []
+    for i, ch in enumerate(chains):
+        cid = named(ch)
+        if cid and cid not in labels.values(): labels[i] = cid
+        else: rest.append(i)
+    rest.sort(key=lambda i: -sum(h["line"][-1][1] for h in chains[i]) / len(chains[i]))  # north first
+    order = {1: ["dunes"], 2: ["oldmac", "dunes"], 3: ["oldmac", "dunes", "pacific"]}.get(len(rest), [])
+    for i, cid in zip(rest, order): labels[i] = cid
+    report.append(f"Routings found: {len(chains)} (lengths {', '.join(str(len(c)) for c in chains)})")
+    for i, ch in enumerate(chains):
+        cid = labels.get(i, "?")
+        lat = sum(h["line"][-1][1] for h in ch) / len(ch) / KY
+        pm = par_match(ch, cid)
+        report.append(f"  routing {i}: {cid}, {len(ch)} holes, avg lat {lat:.4f}, hole yards " +
+                      " ".join(f"{h['n']}:{round(h['len']*1.0936)}" for h in ch) +
+                      (f", par check {pm}/{len(ch)}" if pm is not None else ""))
+    found = {}
+    for i, ch in enumerate(chains):
+        cid = labels.get(i)
         if not cid: continue
-        # direction of play into the green: from a point ~60 m back along the line
-        back, dist = line[-1], 0
-        for i in range(len(line) - 1, 0, -1):
-            dist += math.dist(line[i], line[i - 1]); back = line[i - 1]
-            if dist >= 60: break
-        d = (end[0] - back[0], end[1] - back[1]); L = math.hypot(*d) or 1; d = (d[0] / L, d[1] / L)
-        g = next((g for g in greens if inside(end, g[0])), None)
-        if not g:
-            near = min(greens, key=lambda g: math.dist(g[1], end), default=None)
-            if near and math.dist(near[1], end) < 45: g = near
-        length = sum(math.dist(line[i], line[i - 1]) for i in range(1, len(line)))
-        key = f"{cid}-{n}"
-        if key in found and found[key]["_len"] >= length: continue
-        if g:
-            ts = axis_hits(g[1], d, g[0])
-            if len(ts) >= 2:
-                tf, tb = min(ts), max(ts)
-                F = (g[1][0] + d[0] * tf, g[1][1] + d[1] * tf)
-                B = (g[1][0] + d[0] * tb, g[1][1] + d[1] * tb)
-                M = ((F[0] + B[0]) / 2, (F[1] + B[1]) / 2)
-                found[key] = {"F": ll(F), "M": ll(M), "B": ll(B), "src": "osm", "_len": length,
-                              "_note": f"green depth {round(math.dist(F, B) * 1.0936)} yd"}
-                continue
-        found[key] = {"M": ll(end), "src": "osm", "_len": length, "_note": "no green outline, middle = end of hole line"}
+        for h in ch:
+            line, end = h["line"], h["line"][-1]
+            back, dist = line[-1], 0
+            for j in range(len(line) - 1, 0, -1):
+                dist += math.dist(line[j], line[j - 1]); back = line[j - 1]
+                if dist >= 60: break
+            d = (end[0] - back[0], end[1] - back[1]); L = math.hypot(*d) or 1; d = (d[0] / L, d[1] / L)
+            g = next((g for g in greens if inside(end, g[0])), None)
+            if not g:
+                near = min(greens, key=lambda g: math.dist(g[1], end), default=None)
+                if near and math.dist(near[1], end) < 45: g = near
+            key = f"{cid}-{h['n']}"
+            entry = {"M": ll(end), "src": "osm", "_note": "no green outline, middle = end of hole line"}
+            if g:
+                ts = axis_hits(g[1], d, g[0])
+                if len(ts) >= 2:
+                    tf, tb = min(ts), max(ts)
+                    F = (g[1][0] + d[0] * tf, g[1][1] + d[1] * tf)
+                    B = (g[1][0] + d[0] * tb, g[1][1] + d[1] * tb)
+                    depth = math.dist(F, B) * 1.0936
+                    if 12 <= depth <= 65:
+                        entry = {"F": ll(F), "M": ll(((F[0]+B[0])/2, (F[1]+B[1])/2)), "B": ll(B), "src": "osm",
+                                 "_note": f"green depth {round(depth)} yd"}
+                    else:
+                        entry = {"M": ll(g[1]), "src": "osm", "_note": f"odd green shape ({round(depth)} yd deep), middle = green center"}
+            found[key] = entry
 
     try:
         existing = json.load(open("greens.json"))
@@ -163,8 +218,8 @@ def main():
     json.dump(dict(sorted(out.items())), open("greens.json", "w"), separators=(",", ":"))
 
     names = sorted({c[3] for c in courses})
-    report.append(f"OSM courses matched: {', '.join(names) or 'none'}")
-    report.append(f"Hole lines: {len(holes)}  Green outlines: {len(greens)}")
+    report.insert(0, f"OSM courses matched: {', '.join(names) or 'none'}")
+    report.insert(1, f"Hole lines: {len(holes)}  Green outlines: {len(greens)}")
     for cid in ["sheep", "trails", "oldmac", "dunes", "pacific"]:
         ks = [f"{cid}-{h}" for h in range(1, 19)]
         have = [k for k in ks if k in found]
