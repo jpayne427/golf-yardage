@@ -1,0 +1,20 @@
+name: Build greens from OpenStreetMap
+on:
+  workflow_dispatch:
+  push:
+    paths: ["tools/build_greens.py", ".github/workflows/greens.yml"]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/build_greens.py
+      - name: Commit results
+        run: |
+          git config user.name "greens-bot"
+          git config user.email "greens-bot@users.noreply.github.com"
+          git add greens.json greens-report.txt
+          git diff --cached --quiet || git commit -m "Update greens from OpenStreetMap"
+          git push
