@@ -61,7 +61,7 @@ a.event:active{transform:scale(.99)}
 .chip{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:4px 9px;white-space:nowrap;justify-self:end}
 .chip.live{background:var(--fairway);color:#0B1410}
 .chip.soon{background:var(--sunk);color:var(--muted)}
-.event.off{opacity:.62}
+.event.off>div:not(.ico){opacity:.62}
 .event.off .ico{background:var(--soon)}
 .go{font-size:22px;color:var(--muted);margin-left:4px}
 
@@ -125,7 +125,7 @@ body.has-install main{padding-bottom:110px}
       <span class="chip soon">Coming soon</span>
     </div>
     <div class="event off" aria-disabled="true">
-      <div class="ico"><span class="yr">'27</span></div>
+      <div class="ico"><img src="brand/events/battle-2027.jpg" alt=""></div>
       <div><div class="t">The Battle 2027</div><div class="m">Dates and destination TBD</div></div>
       <span class="chip soon">Coming soon</span>
     </div>
