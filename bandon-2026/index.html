@@ -218,7 +218,7 @@ body{margin:0}
 <body>
 
 <header class="top">
-  <div class="brandwrap"><a href="../" aria-label="All events"><img src="../brand/logo-200.png" alt="ShipStiffs"></a><div class="brand"><small>ShipStiffs</small>Bandon 2026 <span>Team Battle</span></div></div>
+  <div class="brandwrap"><a href="../" aria-label="All events"><img src="../brand/logo-200.png" alt="ShipStiffs"></a><div class="brand" id="evname"><small>ShipStiffs</small>Bandon 2026 <span>Team Battle</span></div></div>
   <div id="sync" class="sync">Connecting…</div>
 </header>
 <main id="main"><div class="splash"><img src="../brand/logo.png" alt="ShipStiffs">Loading the scoreboard…</div></main>
@@ -256,15 +256,19 @@ const FORMATS={
   singles_mp:{label:"Singles Match Play",kind:"mp",side:1,team:"best"},
   fourball_sf:{label:"Four-Ball Stableford",kind:"sf",side:2,team:"best"},
   combined_sf:{label:"Combined Stableford",kind:"sf",side:2,team:"sum"},
-  individual_sf:{label:"Individual Stableford",kind:"sf",side:1,team:"best"}
+  individual_sf:{label:"Individual Stableford",kind:"sf",side:1,team:"best"},
+  stroke_net:{label:"Stroke Play (net)",kind:"sp",side:1,team:"best"},
+  scorecard:{label:"Just keep score",kind:"card",side:1,team:"best"}
 };
-const DEFAULT_ALLOW={singles_mp:100,fourball_mp:90,individual_sf:100,fourball_sf:85,combined_sf:100};
+const DEFAULT_ALLOW={singles_mp:100,fourball_mp:90,individual_sf:100,fourball_sf:85,combined_sf:100,stroke_net:95,scorecard:100};
 const ALLOW_NOTE={
   singles_mp:"Low player plays off 0; the other gets the difference.",
   fourball_mp:"All four play off the low man.",
   individual_sf:"Full strokes, net Stableford points per hole.",
   fourball_sf:"Full strokes. Team takes the better net points per hole.",
-  combined_sf:"Full strokes. Team adds both players' net points."
+  combined_sf:"Full strokes. Team adds both players' net points.",
+  stroke_net:"Full strokes. Lowest net total wins; a pick-up counts as net double bogey.",
+  scorecard:"No winner, just gross and net totals."
 };
 
 const S={db:null,user:null,readOnly:false,setup:null,players:{},courses:{},matches:{},cards:{},
@@ -276,6 +280,9 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const num=v=>{if(v===""||v==null)return null;const n=Number(v);return Number.isFinite(n)?n:null};
 const fmtPts=n=>{n=Math.round(n*2)/2;const w=Math.floor(n);return n%1?(w?w+"½":"½"):String(w)};
 const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const EVENT=(location.pathname.split("/").filter(Boolean).pop()||"bandon-2026").replace(/\.html?$/,"").replace(/^index$/,"bandon-2026");
+const NS=EVENT==="bandon-2026"?"":EVENT+".";                      // database collection prefix for this event
+const navKey=k=>EVENT==="bandon-2026"?k:EVENT+":"+k;               // remembered tab/round per event
 
 /* ---------- lookups ---------- */
 const rounds=()=>S.setup?.rounds||[];
@@ -340,7 +347,7 @@ function computeMatch(m){
     for(const p of all){
       const g=cardVal(m.round,p,h),s=shotsOn(out.ph[p],si),cell={g,s,net:null,pts:null};
       if(g==null)row.complete=false;
-      else if(g==="x"){cell.pts=0}
+      else if(g==="x"){cell.pts=0;if(f.kind==="sp"||f.kind==="card")cell.net=par+2}  // pick-up = net double bogey
       else{cell.net=g-s;cell.pts=Math.max(0,2+par-cell.net)}
       row.p[p]=cell;
     }
@@ -353,6 +360,10 @@ function computeMatch(m){
         if(sv[0]!=null&&(sv[1]==null||sv[0]<sv[1]))w="t1";else if(sv[1]!=null&&(sv[0]==null||sv[1]<sv[0]))w="t2";
         row.won=w;if(w==="t1")diff++;if(w==="t2")diff--;row.run=diff;
         if(Math.abs(diff)>holes.length-played)closed=true;
+      }else if(f.kind==="sp"||f.kind==="card"){
+        const sv=sides.map(sd=>sd.reduce((a,p)=>a+row.p[p].net,0));
+        row.side=sv;tot[0]+=sv[0];tot[1]+=sv[1];row.run=[tot[0],tot[1]];
+        row.won=sv[0]<sv[1]?"t1":sv[1]<sv[0]?"t2":"half";
       }else{
         const sv=sides.map(sd=>{const pts=sd.map(p=>row.p[p].pts);return f.team==="sum"?pts.reduce((a,b)=>a+b,0):Math.max(...pts)});
         row.side=sv;tot[0]+=sv[0];tot[1]+=sv[1];row.run=[tot[0],tot[1]];
@@ -369,6 +380,14 @@ function computeMatch(m){
     out.final=closed||rem===0;
     if(out.final){out.state="final";out.result=out.leader||"half";out.text=a===0?"Halved":rem>0?`${a}&${rem}`:`${a} UP`}
     else{out.state="live";out.text=(a===0?"All square":`${a} UP`)+` thru ${lastH}`+(a>0&&a===rem?" · dormie":"")}
+  }else if(f.kind==="sp"||f.kind==="card"){
+    const gross=[0,1].map(i=>out.rows.filter(x=>x.counted).reduce((a,x)=>a+sides[i].reduce((b,p)=>{const c=x.p[p];return b+(c.g==="x"?c.net+c.s:c.g)},0),0));
+    out.gross=gross;
+    out.leader=f.kind==="card"?null:(tot[0]<tot[1]?"t1":tot[1]<tot[0]?"t2":null);
+    out.final=played===holes.length;
+    if(f.kind==="card"){out.state=out.final?"final":"live";out.result=null;out.text=`Gross ${gross[0]}–${gross[1]} · net ${tot[0]}–${tot[1]}${out.final?"":` thru ${lastH}`}`}
+    else if(out.final){out.state="final";out.result=out.leader||"half";out.text=`${Math.min(...tot)}–${Math.max(...tot)} net`+(out.leader?"":" (tied)")}
+    else{out.state="live";out.text=`${tot[0]}–${tot[1]} net thru ${lastH}`}
   }else{
     out.leader=tot[0]>tot[1]?"t1":tot[1]>tot[0]?"t2":null;
     out.final=played===holes.length;
@@ -378,7 +397,7 @@ function computeMatch(m){
   }
   return out;
 }
-function counts(m){return !!(FORMATS[m.format]||(m.manual&&m.manual.winner))}
+function counts(m){return !!((FORMATS[m.format]&&FORMATS[m.format].kind!=="card")||(m.manual&&m.manual.winner))}
 function pointsFor(res,projected){
   const pts=num(res.m.pts)??1;
   let r=res.final?res.result:(projected&&res.state==="live"?(res.leader||"half"):null);
@@ -549,7 +568,7 @@ function renderSetup(){
 
   h+=`<section class="sec"><h2>Courses</h2><p class="hint">Course handicap = Index × Slope ÷ 113 + (Rating − Par), rounded. Until rating and slope are in, the app uses the index rounded and marks results as estimated.</p>`;
   // scheduled courses first, then other courses we keep cards for (ready if plans change)
-  const EXTRA_COURSES={pacific:"Pacific Dunes"};
+  const EXTRA_COURSES=EVENT==="bandon-2026"?{pacific:"Pacific Dunes"}:{};
   const listed=new Set(rounds().map(r=>r.course));
   const courseCards=[...rounds(),...[...new Set([...Object.keys(EXTRA_COURSES),...Object.keys(S.courses)])].filter(id=>!listed.has(id))
     .map(id=>({course:id,name:S.courses[id]?.name||EXTRA_COURSES[id]||id,day:"Not on the schedule"}))];
@@ -694,7 +713,10 @@ function renderSheet(){
       <tr><td class="hint">SI</td>${res.rows.map(x=>`<td class="hint">${x.si}</td>`).join("")}</tr>`;
     for(const p of all){const team=res.sides[0].includes(p)?"c1":"c2";
       h+=`<tr><td class="${team}">${esc(shortName(p))} <span class="hint">${res.ph[p]}</span></td>${res.rows.map(x=>{const c=x.p[p];return`<td>${c.g==null?"·":c.g==="x"?"PU":c.g}${c.s?`<sup>${"•".repeat(c.s)}</sup>`:""}</td>`}).join("")}</tr>`}
-    if(f.kind==="sf"){
+    if(f.kind==="sp"||f.kind==="card"){
+      h+=`<tr><td>Net</td>${res.rows.map(x=>`<td class="${f.kind==="sp"?(x.won==="t1"?"w1":x.won==="t2"?"w2":""):""}">${x.counted?`${x.side[0]}·${x.side[1]}`:""}</td>`).join("")}</tr>`;
+      h+=`<tr><td>Total</td>${res.rows.map(x=>`<td>${x.counted?`${x.run[0]}–${x.run[1]}`:""}</td>`).join("")}</tr>`;
+    }else if(f.kind==="sf"){
       h+=`<tr><td>Pts</td>${res.rows.map(x=>`<td class="${x.won==="t1"?"w1":x.won==="t2"?"w2":""}">${x.counted?`${x.side[0]}·${x.side[1]}`:""}</td>`).join("")}</tr>`;
       h+=`<tr><td>Total</td>${res.rows.map(x=>`<td>${x.counted?`${x.run[0]}–${x.run[1]}`:""}</td>`).join("")}</tr>`;
     }else{
@@ -708,8 +730,9 @@ function renderSheet(){
     <div class="field"><label><span class="tdot t2"></span>${esc(teamName("t2"))}</label>${Array.from({length:side},(_,i)=>`<select id="ms-t2-${i}" data-m="t2:${i}" ${dis}>${opts((m.t2||[])[i],"t2")}</select>`).join("")}</div>
   </div></section>`;
   h+=`<section class="sec"><h3>Format</h3><div class="card">
-    <div class="grid2"><div class="field"><label for="mf">Format</label><select id="mf" data-m="format" ${dis}><option value="">TBD (no points)</option>${Object.entries(FORMATS).map(([k,v])=>`<option value="${k}" ${m.format===k?"selected":""}>${v.label}</option>`).join("")}</select></div>
+    <div class="grid2"><div class="field"><label for="mf">Format</label><select id="mf" data-m="format" ${dis}><option value="">TBD (no points)</option>${[[1,"1 v 1"],[2,"2 v 2"]].map(([n,g])=>`<optgroup label="${g}">${Object.entries(FORMATS).filter(([,v])=>v.side===n).map(([k,v])=>`<option value="${k}" ${m.format===k?"selected":""}>${v.label}</option>`).join("")}</optgroup>`).join("")}</select></div>
     <div class="field"><label for="mp">Points</label><input id="mp" type="number" step="0.5" inputmode="decimal" value="${esc(m.pts??1)}" data-m="pts" ${dis}></div></div>
+    <div class="field"><label>Holes</label><div class="seg" style="grid-template-columns:repeat(3,1fr)">${[[1,9,"Front 9"],[10,18,"Back 9"],[1,18,"18 holes"]].map(([a,b,l])=>`<button data-act="holes" data-r="${a}-${b}" aria-pressed="${num(m.from)===a&&num(m.to)===b}" ${dis}>${l}</button>`).join("")}</div></div>
     <div class="grid3">
       <div class="field"><label for="mr">Round</label><select id="mr" data-m="round" ${dis}>${rounds().map(x=>`<option value="${esc(x.id)}" ${x.id===m.round?"selected":""}>${esc(x.name)}</option>`).join("")}</select></div>
       <div class="field"><label for="mfr">From hole</label><input id="mfr" type="number" inputmode="numeric" value="${esc(m.from??1)}" data-m="from" ${dis}></div>
@@ -739,7 +762,8 @@ function render(){
   if(S.err){main.innerHTML=`<div class="empty">${esc(S.err)}</div>`;return}
   if(S.loaded<5){if(!main.querySelector(".splash"))main.innerHTML=`<div class="splash"><img src="../brand/logo.png" alt="ShipStiffs">Loading the scoreboard…</div>`;return}
   const lockBanner=S.readOnly?`<div class="banner" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span><b>View only.</b> Enter the trip PIN to keep score.</span><button class="btn primary" data-act="pin" style="padding:8px 12px">Enter PIN</button></div>`:"";
-  if(!S.setup){main.innerHTML=`<div class="empty">The tournament hasn't been set up yet. The organizer's data will appear here once it's added.</div>`;return}
+  if(!S.setup){main.innerHTML=EVENT==="bandon-2026"?`<div class="empty">The tournament hasn't been set up yet.</div>`:renderNewEvent();return}
+  if(S.setup.name){const [a,...b]=String(S.setup.name).split(" ");$("#evname").innerHTML=`<small>ShipStiffs</small>${esc(a)} <span>${esc(b.join(" "))}</span>`;document.title=S.setup.name+" · ShipStiffs"}
   const hs=$("#hchips")?.scrollLeft,rs=$("#rchips")?.scrollLeft;
   if(S.tab==="map"){if(!$("#mapframe"))main.innerHTML=renderMap();renderSheet();return}
   main.innerHTML=S.tab==="board"?renderBoard():S.tab==="score"?renderScore():S.tab==="matches"?renderMatches():S.tab==="games"?renderGames():renderSetup();
@@ -784,20 +808,22 @@ function flushCard(id,round,pid){
 function updDoc(path,data){return serial(path,()=>S.db.doc(path).update(data))}
 
 /* ---------- events ---------- */
-document.getElementById("tabs").addEventListener("click",e=>{const b=e.target.closest("button[data-tab]");if(!b)return;S.tab=b.dataset.tab;S.confirm=null;ls.set("tab",S.tab);window.scrollTo(0,0);if(S.tab==="score"){S.centerHole=true;wake()}render()});
+document.getElementById("tabs").addEventListener("click",e=>{const b=e.target.closest("button[data-tab]");if(!b)return;S.tab=b.dataset.tab;S.confirm=null;ls.set(navKey("tab"),S.tab);window.scrollTo(0,0);if(S.tab==="score"){S.centerHole=true;wake()}render()});
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-act]");if(!b||b.disabled)return;
   const act=b.dataset.act;
   if(act!=="askdel"&&act!=="delplayer"&&act!=="delmatch")S.confirm=null;
   const r=roundById(S.scoreRound),c=r&&S.courses[r.course],par=courseReady(c)?num(c.pars[S.scoreHole-1]):4;
   switch(act){
-    case"sround":S.scoreRound=b.dataset.id;S.scoreGroup=null;S.scoreHole=null;S.centerHole=true;ls.set("sround",S.scoreRound);render();break;
+    case"sround":S.scoreRound=b.dataset.id;S.scoreGroup=null;S.scoreHole=null;S.centerHole=true;ls.set(navKey("sround"),S.scoreRound);render();break;
     case"pin":openPin();break;
+    case"holes":{const m=S.matches[S.openMatch];const [a,z]=b.dataset.r.split("-").map(Number);if(m)updDoc("matches/"+m.id,{from:a,to:z});break}
+    case"newevent":createEvent();break;
     case"addtee":{const cid=b.dataset.id,c=S.courses[cid]||{};S.openCourse=cid;updDoc("courses/"+cid,{teeSets:[...teeSetsOf(c),{name:"New tees",rating:null,slope:null,par:num(c.par)}]});break}
     case"deltee":{const [cid,i]=b.dataset.id.split(":"),c=S.courses[cid]||{},ts=teeSetsOf(c).filter((_,k)=>k!==+i);S.openCourse=cid;updDoc("courses/"+cid,{teeSets:ts});break}
     case"scan":S.scanCourse=b.dataset.id;SCAN.tray=[];SCAN.trayFor=b.dataset.id;$("#scanfile").value="";$("#scanfile").click();break;
     case"ground":S.gameRound=b.dataset.id;render();break;
-    case"sgroup":S.scoreGroup=b.dataset.id;S.scoreHole=null;S.centerHole=true;ls.set("sgroup",S.scoreGroup);render();break;
+    case"sgroup":S.scoreGroup=b.dataset.id;S.scoreHole=null;S.centerHole=true;ls.set(navKey("sgroup"),S.scoreGroup);render();break;
     case"shole":S.scoreHole=Number(b.dataset.h);S.centerHole=true;render();break;
     case"setpar":{const v=cardVal(S.scoreRound,b.dataset.p,S.scoreHole);if(v==null||v==="x")setScore(b.dataset.p,S.scoreHole,par);break}
     case"inc":{const v=cardVal(S.scoreRound,b.dataset.p,S.scoreHole);setScore(b.dataset.p,S.scoreHole,v==null||v==="x"?par+1:Math.min(15,v+1));break}
@@ -862,6 +888,8 @@ function setSync(t,bad){const s=$("#sync");s.textContent=t;s.classList.toggle("b
 function deepMerge(a,b){if(a&&b&&typeof a==="object"&&typeof b==="object"&&!Array.isArray(a)&&!Array.isArray(b)){const o={...a};for(const k of Object.keys(b))o[k]=k in a?deepMerge(a[k],b[k]):b[k];return o}return b}
 function makeStore(sb){
   const cache={},subs=[];
+  // rows belonging to this event, with the event prefix removed (Bandon: rows with no prefix)
+  const own=full=>NS?(full.startsWith(NS)?full.slice(NS.length):null):(full.includes(".")?null:full);
   const docSnap=(c,id)=>({id,exists:!!(cache[c]&&cache[c][id]),data:()=>cache[c]&&cache[c][id]});
   const collSnap=c=>({docs:Object.entries(cache[c]||{}).map(([id,d])=>({id,exists:true,data:()=>d}))});
   const emit=c=>subs.forEach(l=>{if(l.c===c)l.fn(l.id?docSnap(c,l.id):collSnap(c))});
@@ -870,11 +898,11 @@ function makeStore(sb){
     const {data,error}=await sb.from("docs").select("collection,id,data");
     if(error)throw error;
     for(const k of Object.keys(cache))cache[k]={};
-    data.forEach(r=>put(r.collection,r.id,r.data));
+    data.forEach(r=>{const c=own(r.collection);if(c)put(c,r.id,r.data)});
     ["setup","players","courses","matches","cards"].forEach(emit);
   }
   async function rpc(c,id,d,mode){
-    const {error}=await sb.rpc("write_doc",{p_pin:S.pin||"",p_collection:c,p_id:id,p_data:d||{},p_mode:mode});
+    const {error}=await sb.rpc("write_doc",{p_pin:S.pin||"",p_collection:NS+c,p_id:id,p_data:d||{},p_mode:mode});
     if(error)throw /wrong pin/i.test(error.message||"")?{code:"wrong_pin"}:{code:"unavailable",message:error.message};
   }
   const split=p=>{const i=p.indexOf("/");return[p.slice(0,i),p.slice(i+1)]};
@@ -882,7 +910,8 @@ function makeStore(sb){
     loadAll,
     listen(onState){
       return sb.channel("docs").on("postgres_changes",{event:"*",schema:"public",table:"docs"},p=>{
-        const r=p.new&&p.new.collection?p.new:p.old;
+        const raw=p.new&&p.new.collection?p.new:p.old;if(!raw||!raw.collection)return;
+        const col=own(raw.collection);if(!col)return;const r={...raw,collection:col};
         if(!r||!r.collection)return;
         if(p.eventType==="DELETE"){if(cache[r.collection])delete cache[r.collection][r.id]}else put(r.collection,r.id,r.data);
         emit(r.collection);
@@ -898,6 +927,43 @@ function makeStore(sb){
     collection(c){return{onSnapshot(fn){const l={c,fn};subs.push(l);if(cache[c])fn(collSnap(c));return()=>subs.splice(subs.indexOf(l),1)}}}
   };
 }
+/* ---------- first-run setup for a new event ---------- */
+function renderNewEvent(){
+  const d=S.newEv||(S.newEv={name:"RedTail Test Drive",day:"Sun 10/11",course:"RedTail Golf Center",p1:"",i1:"",p2:"",i2:"",holes:"1-9",format:"singles_mp"});
+  const games=Object.entries(FORMATS).filter(([,v])=>v.side===1);
+  return`<section class="sec"><h2>Set up this event</h2><p class="hint">Two players, one round. You can change any of this later on the Setup and Matches tabs.</p>
+  ${S.readOnly?`<div class="banner" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span>Enter the PIN to create it.</span><button class="btn primary" data-act="pin" style="padding:8px 12px">Enter PIN</button></div>`:""}
+  <div class="card">
+    <div class="field"><label for="ne-name">Event name</label><input id="ne-name" type="text" value="${esc(d.name)}" data-ne="name"></div>
+    <div class="grid2"><div class="field"><label for="ne-course">Course</label><input id="ne-course" type="text" value="${esc(d.course)}" data-ne="course"></div>
+    <div class="field"><label for="ne-day">Day</label><input id="ne-day" type="text" value="${esc(d.day)}" data-ne="day"></div></div>
+    <div class="plrow" style="grid-template-columns:minmax(0,1fr) 80px"><div class="field"><label for="ne-p1">Player 1</label><input id="ne-p1" type="text" placeholder="Name" value="${esc(d.p1)}" data-ne="p1"></div><div class="field"><label for="ne-i1">Index</label><input id="ne-i1" type="number" step="0.1" inputmode="decimal" value="${esc(d.i1)}" data-ne="i1"></div></div>
+    <div class="plrow" style="grid-template-columns:minmax(0,1fr) 80px"><div class="field"><label for="ne-p2">Player 2</label><input id="ne-p2" type="text" placeholder="Name" value="${esc(d.p2)}" data-ne="p2"></div><div class="field"><label for="ne-i2">Index</label><input id="ne-i2" type="number" step="0.1" inputmode="decimal" value="${esc(d.i2)}" data-ne="i2"></div></div>
+    <div class="field"><label for="ne-holes">Holes</label><select id="ne-holes" data-ne="holes">${[["1-9","Front 9"],["10-18","Back 9"],["1-18","18 holes"]].map(([v,l])=>`<option value="${v}" ${d.holes===v?"selected":""}>${l}</option>`).join("")}</select></div>
+    <div class="field"><label for="ne-format">Game</label><select id="ne-format" data-ne="format">${games.map(([k,v])=>`<option value="${k}" ${d.format===k?"selected":""}>${v.label}</option>`).join("")}</select></div>
+    <p class="hint" style="margin:0">${esc(ALLOW_NOTE[d.format]||"")}</p>
+    <button class="btn primary" data-act="newevent" ${S.readOnly?"disabled":""}>Create event</button>
+  </div></section>`;
+}
+document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset.ne;if(k&&S.newEv)S.newEv[k]=e.target.value});
+document.addEventListener("change",e=>{const k=e.target.dataset&&e.target.dataset.ne;if(k&&S.newEv){S.newEv[k]=e.target.value;if(k==="format")render()}});
+async function createEvent(){
+  const d=S.newEv;if(!d||S.readOnly)return;
+  if(!d.p1.trim()||!d.p2.trim()){toast("Add both players' names.");return}
+  const cid=(d.course.toLowerCase().match(/[a-z0-9]+/g)||["course"]).join("").replace(/golf(center|club|course|links)?$/,"")||"course";
+  const [from,to]=d.holes.split("-").map(Number);
+  const writes=[
+    ["setup/main",{name:d.name.trim()||"Test Event",teams:{t1:{name:d.p1.trim()},t2:{name:d.p2.trim()}},allowances:{...DEFAULT_ALLOW},rounds:[{id:"r1",course:cid,name:d.course.trim(),day:d.day.trim()}]}],
+    ["players/p1",{name:d.p1.trim(),index:num(d.i1),team:"t1"}],
+    ["players/p2",{name:d.p2.trim(),index:num(d.i2),team:"t2"}],
+    ["matches/m1",{n:1,round:"r1",from,to,group:"",label:"1v1",format:d.format,pts:1,t1:["p1"],t2:["p2"],manual:null,note:""}],
+  ];
+  if(!S.courses[cid])writes.push(["courses/"+cid,{name:d.course.trim()}]);
+  for(const [path,data] of writes)await write(()=>S.db.doc(path).set(data));
+  S.tab="setup";S.openCourse=cid;ls.set(navKey("tab"),"setup");render();
+  toast("Event created. Next: scan the scorecard on Setup.");
+}
+
 /* ---------- scorecard scanner ---------- */
 const SCAN={};
 function shrink(file){ // phone photos are huge: send a 1600px JPEG instead
@@ -1024,7 +1090,7 @@ $("#pinform").addEventListener("submit",async e=>{
   S.pin=pin;ls.set("pin",pin);S.readOnly=false;$("#pinbox").hidden=true;setSync("Live");render();toast("Unlocked. You can keep score on this phone.");
 });
 async function boot(){
-  S.tab=ls.get("tab")||"board";S.scoreRound=ls.get("sround");S.scoreGroup=ls.get("sgroup");
+  S.tab=ls.get(navKey("tab"))||"board";S.scoreRound=ls.get(navKey("sround"));S.scoreGroup=ls.get(navKey("sgroup"));
   render();
   const cfg=window.BATTLE_CONFIG||{};
   if(!window.supabase||!cfg.url||!cfg.anonKey){S.err="The scoreboard isn't connected to its database yet.";setSync("Offline",true);render();return}
