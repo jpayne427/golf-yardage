@@ -776,7 +776,7 @@ document.addEventListener("click",e=>{
   switch(act){
     case"sround":S.scoreRound=b.dataset.id;S.scoreGroup=null;S.scoreHole=null;S.centerHole=true;ls.set("sround",S.scoreRound);render();break;
     case"pin":openPin();break;
-    case"scan":S.scanCourse=b.dataset.id;$("#scanfile").value="";$("#scanfile").click();break;
+    case"scan":S.scanCourse=b.dataset.id;SCAN.tray=[];SCAN.trayFor=b.dataset.id;$("#scanfile").value="";$("#scanfile").click();break;
     case"ground":S.gameRound=b.dataset.id;render();break;
     case"sgroup":S.scoreGroup=b.dataset.id;S.scoreHole=null;S.centerHole=true;ls.set("sgroup",S.scoreGroup);render();break;
     case"shole":S.scoreHole=Number(b.dataset.h);S.centerHole=true;render();break;
@@ -878,27 +878,47 @@ function shrink(file){ // phone photos are huge: send a 1600px JPEG instead
 }
 function scanView(html){const el=$("#scanbox");el.innerHTML=`<div class="in">${html}</div>`;el.hidden=false;el.scrollTop=0}
 function closeScan(){$("#scanbox").hidden=true;$("#scanbox").innerHTML=""}
+// Photos collect in a tray first, so the camera can take front and back before sending.
+SCAN.tray=[];
+function scanName(){const r=rounds().find(x=>x.course===S.scanCourse);return S.courses[S.scanCourse]?.name||r?.name||{pacific:"Pacific Dunes"}[S.scanCourse]||"this course"}
+function drawTray(msg){
+  const n=SCAN.tray.length;
+  scanView(`<div class="rhead"><h2>Scan ${esc(scanName())}</h2><button class="btn" data-scan="close" style="padding:8px 12px">Cancel</button></div>
+    <p class="hint" style="margin:0">${n} photo${n===1?"":"s"} ready. Add the other side of the card if it has one (up to 4 photos), then read the card.</p>
+    ${msg?`<div class="banner">${msg}</div>`:""}
+    <div class="thumbs">${SCAN.tray.map((i,k)=>`<div style="position:relative"><img src="${i.preview}" alt="Scorecard photo ${k+1}"><button class="btn" data-scan="drop" data-k="${k}" aria-label="Remove photo ${k+1}" style="position:absolute;top:4px;right:4px;padding:2px 8px">×</button></div>`).join("")}</div>
+    <div class="rowbtn"><button class="btn" data-scan="more" ${n>=4?"disabled":""}>Add another photo</button><button class="btn primary" data-scan="read" ${n?"":"disabled"}>Read the card</button></div>`);
+}
 $("#scanfile").addEventListener("change",async e=>{
-  const files=[...e.target.files].slice(0,4);if(!files.length)return;
-  const r=rounds().find(x=>x.course===S.scanCourse),name=S.courses[S.scanCourse]?.name||r?.name||{pacific:"Pacific Dunes"}[S.scanCourse]||"this course";
-  scanView(`<h2>Scan ${esc(name)}</h2><div style="display:flex;gap:12px;align-items:center"><div class="spin" aria-hidden="true"></div><span>Reading the card… this takes about 15–40 seconds.</span></div>`);
-  let imgs;try{imgs=await Promise.all(files.map(shrink))}catch(err){scanView(`<h2>Scan failed</h2><p>${esc(err.message)}</p><button class="btn" data-scan="close">Close</button>`);return}
-  $("#scanbox .in").insertAdjacentHTML("beforeend",`<div class="thumbs">${imgs.map(i=>`<img src="${i.preview}" alt="Scorecard photo">`).join("")}</div>`);
+  const files=[...e.target.files];if(!files.length)return;
+  if(!SCAN.trayFor||SCAN.trayFor!==S.scanCourse){SCAN.tray=[];SCAN.trayFor=S.scanCourse}
+  try{const add=await Promise.all(files.map(shrink));SCAN.tray=[...SCAN.tray,...add].slice(0,4);drawTray()}
+  catch(err){drawTray(esc(err.message))}
+});
+async function readCard(){
+  const imgs=SCAN.tray;
+  scanView(`<h2>Scan ${esc(scanName())}</h2><div style="display:flex;gap:12px;align-items:center"><div class="spin" aria-hidden="true"></div><span>Reading the card… this takes about 15–40 seconds.</span></div>
+    <div class="thumbs">${imgs.map(i=>`<img src="${i.preview}" alt="Scorecard photo">`).join("")}</div>`);
   const cfg=window.BATTLE_CONFIG||{};
   try{
     const resp=await fetch(cfg.url+"/functions/v1/scan-scorecard",{method:"POST",headers:{"Content-Type":"application/json",apikey:cfg.anonKey,Authorization:"Bearer "+cfg.anonKey},
       body:JSON.stringify({pin:S.pin,images:imgs.map(({media_type,data})=>({media_type,data}))})});
-    const out=await resp.json().catch(()=>({error:"The scan service didn't answer properly."}));
+    const out=await resp.json().catch(()=>({error:`The scan service didn't answer properly (HTTP ${resp.status}).`}));
     if(resp.status===403&&out.error==="wrong_pin"){closeScan();writeFailed({code:"wrong_pin"});return}
-    if(!resp.ok||!out.card)throw new Error(out.error||"The scan didn't work.");
-    SCAN.card=out.card;SCAN.imgs=imgs;SCAN.tee=0;
+    if(!resp.ok||!out.card){const e=new Error(out.error||"The scan didn't work.");e.details=out.details;throw e}
+    SCAN.card=out.card;SCAN.imgs=imgs;SCAN.tee=0;SCAN.tray=[];SCAN.trayFor=null;
     const holes={};(out.card.holes||[]).forEach(h=>{if(h.hole>=1&&h.hole<=18)holes[h.hole]=h});
     SCAN.pars=Array.from({length:18},(_,i)=>holes[i+1]?.par??null);
     SCAN.si=Array.from({length:18},(_,i)=>holes[i+1]?.si??null);
     const t=(out.card.tees||[])[0]||{};SCAN.rating=t.rating??null;SCAN.slope=t.slope??null;
     drawReview();
-  }catch(err){scanView(`<h2>Scan failed</h2><p>${esc(err.message||"Check your connection and try again.")}</p><div class="rowbtn"><button class="btn" data-scan="close">Close</button><button class="btn primary" data-scan="retry">Try another photo</button></div>`)}
-});
+  }catch(err){
+    const det=(err.details||[]).map(d=>`<li>${esc(d)}</li>`).join("");
+    scanView(`<h2>Scan failed</h2><p>${esc(err.message||"Check your connection and try again.")}</p>
+      ${det?`<details><summary class="hint">Technical details (send these to the organizer)</summary><ul class="hint" style="word-break:break-word">${det}</ul></details>`:""}
+      <div class="rowbtn"><button class="btn" data-scan="close">Close</button><button class="btn primary" data-scan="read">Try again</button></div>`);
+  }
+}
 function scanIssues(){
   const iss=[],pars=SCAN.pars,si=SCAN.si;
   const missP=pars.map((v,i)=>v==null?i+1:null).filter(Boolean),missS=si.map((v,i)=>v==null?i+1:null).filter(Boolean);
@@ -943,8 +963,11 @@ $("#scanbox").addEventListener("change",e=>{
 });
 $("#scanbox").addEventListener("click",e=>{
   const a=e.target.closest("[data-scan]");if(!a)return;
-  if(a.dataset.scan==="close")closeScan();
-  else if(a.dataset.scan==="retry"){closeScan();$("#scanfile").value="";$("#scanfile").click()}
+  if(a.dataset.scan==="close"){closeScan();SCAN.tray=[];SCAN.trayFor=null}
+  else if(a.dataset.scan==="retry"){SCAN.tray=[];SCAN.trayFor=S.scanCourse;$("#scanfile").value="";$("#scanfile").click()}
+  else if(a.dataset.scan==="more"){$("#scanfile").value="";$("#scanfile").click()}
+  else if(a.dataset.scan==="drop"){SCAN.tray.splice(+a.dataset.k,1);drawTray()}
+  else if(a.dataset.scan==="read"){if(SCAN.tray.length)readCard()}
   else if(a.dataset.scan==="save"){
     const cid=S.scanCourse,tee=(SCAN.card.tees||[])[SCAN.tee]||{};
     const data={pars:SCAN.pars,si:SCAN.si,par:SCAN.pars.every(v=>v!=null)?SCAN.pars.reduce((x,y)=>x+y,0):null,rating:SCAN.rating,slope:SCAN.slope,tees:tee.name||"",source:"Scanned from the scorecard"};

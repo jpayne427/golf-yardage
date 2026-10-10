@@ -89,36 +89,53 @@ Deno.serve(async (req) => {
   if (images.some((i) => i.data.length > 7_000_000)) return json({ error: "A photo is too large." }, 413);
 
   const client = new Anthropic(); // reads ANTHROPIC_API_KEY
-  try {
-    const response = await client.beta.messages.create({
-      model: "claude-opus-5-5",
-      max_tokens: 16000,
-      output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA } },
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      messages: [{
-        role: "user",
-        content: [
-          ...images.map((i) => ({
-            type: "image" as const,
-            source: { type: "base64" as const, media_type: i.media_type as "image/jpeg", data: i.data },
-          })),
-          { type: "text" as const, text: PROMPT },
-        ],
-      }],
-    });
-
-    if (response.stop_reason === "refusal") return json({ error: "The card couldn't be read. Try another photo." }, 422);
-    if (response.stop_reason === "max_tokens") return json({ error: "The card was too long to read in one go." }, 422);
-    const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
-    const card = JSON.parse(text);
-    return json({ card, model: response.model, usage: response.usage });
-  } catch (err) {
-    if (err instanceof Anthropic.AuthenticationError) return json({ error: "The Anthropic API key is missing or wrong." }, 500);
-    if (err instanceof Anthropic.RateLimitError) return json({ error: "Busy right now. Try again in a minute." }, 429);
-    if (err instanceof Anthropic.BadRequestError) return json({ error: "The photo couldn't be processed. Try a smaller or clearer one." }, 400);
-    if (err instanceof Anthropic.APIError) return json({ error: `Scan service error (${err.status}). Try again.` }, 502);
-    if (err instanceof SyntaxError) return json({ error: "The scan came back garbled. Try again." }, 502);
-    return json({ error: "Something went wrong reading the card." }, 500);
+  const content = [
+    ...images.map((i) => ({
+      type: "image" as const,
+      source: { type: "base64" as const, media_type: i.media_type as "image/jpeg", data: i.data },
+    })),
+    { type: "text" as const, text: PROMPT },
+  ];
+  // Try the full request first; if the API rejects an option, retry with a simpler request
+  // and report the API's own message so problems can be diagnosed.
+  const attempts = [
+    { label: "full", fallbacks: true, schema: true },
+    { label: "no-fallbacks", fallbacks: false, schema: true },
+    { label: "plain-json", fallbacks: false, schema: false },
+  ];
+  const errors: string[] = [];
+  for (const a of attempts) {
+    try {
+      const response = await client.beta.messages.create({
+        model: "claude-opus-5-5",
+        max_tokens: 16000,
+        output_config: a.schema
+          ? { effort: "medium", format: { type: "json_schema", schema: SCHEMA } }
+          : { effort: "medium" },
+        ...(a.fallbacks ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
+        messages: [{
+          role: "user",
+          content: a.schema ? content : [...content.slice(0, -1), {
+            type: "text" as const,
+            text: PROMPT + "\n\nReply with only a JSON object matching this JSON Schema, no other text:\n" + JSON.stringify(SCHEMA),
+          }],
+        }],
+      });
+      if (response.stop_reason === "refusal") return json({ error: "The card couldn't be read. Try another photo." }, 422);
+      if (response.stop_reason === "max_tokens") return json({ error: "The card was too long to read in one go." }, 422);
+      const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
+      const start = text.indexOf("{"), end = text.lastIndexOf("}");
+      const card = JSON.parse(a.schema ? text : text.slice(start, end + 1));
+      return json({ card, model: response.model, usage: response.usage, attempt: a.label, earlier_errors: errors });
+    } catch (err) {
+      if (err instanceof Anthropic.BadRequestError) { errors.push(`${a.label}: ${err.message}`); console.error(a.label, err.message); continue; }
+      if (err instanceof Anthropic.AuthenticationError) return json({ error: "The Anthropic API key is missing or wrong." }, 500);
+      if (err instanceof Anthropic.PermissionDeniedError) return json({ error: `The API key isn't allowed to do this: ${err.message}` }, 500);
+      if (err instanceof Anthropic.RateLimitError) return json({ error: "Busy right now. Try again in a minute." }, 429);
+      if (err instanceof Anthropic.APIError) return json({ error: `Scan service error (${err.status}): ${err.message}` }, 502);
+      if (err instanceof SyntaxError) { errors.push(`${a.label}: reply wasn't valid JSON`); continue; }
+      return json({ error: `Something went wrong reading the card: ${String(err)}` }, 500);
+    }
   }
+  return json({ error: "The scan service rejected the request.", details: errors }, 400);
 });
