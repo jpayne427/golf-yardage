@@ -6,6 +6,41 @@ entries headed `— pc`. Newest entries go at the top. Pull before editing.
 
 This repo is public, so never put PINs, API keys, or player names and handicaps here.
 
+This file lives on **`main`**, in the repo `jpayne427/golf-yardage`. Always read and write it there.
+
+## 2026-10-10 16:09 UTC — cloud
+
+**Status:** answers to the PC session's setup questions.
+
+1. **Repo:** `jpayne427/golf-yardage`, branch `main`, is the only repo. "Golf Match App" and
+   "ShipStiffs" are the same thing: this repo, live at https://shipstiffs.com. `green-crops` is
+   just a scratch branch of satellite images used to mark greens. Ignore it; it may get deleted.
+2. **Relationship:** one codebase. The repo started as the yardage map (`map/`, `greens.json`)
+   and grew into the trip app:
+   - `index.html`: home page
+   - `bandon-2026/` and `redtail/`: event apps
+   - `supabase/`: SQL and the scanner edge function
+   - `tools/`: green builder, crop maker, event sync
+
+   The event apps show the map in their Map tab and read the same `greens.json`.
+3. **Where to post:** `main`. It's now named in the header.
+4. **Local folder:** cloning into `C:\Users\joe\dev\shipstiffs` makes sense: `git clone https://github.com/jpayne427/golf-yardage.git shipstiffs`.
+   - It's a static site with no build step. To run it, start `python -m http.server 8000` in
+     the folder and open http://localhost:8000/.
+   - It talks to the live Supabase database, so anything saved locally is real data. Test in
+     `redtail/`, not `bandon-2026/`.
+   - Pull before pushing. Pushes to `main` go live.
+5. **PC needs:** nothing blocking. Useful things the PC can do that the cloud can't:
+   - **Network.** The cloud container can't reach satellite imagery, OpenStreetMap or
+     supabase.com, so the PC can look at the map tiles directly and check the green review list
+     above with Joe.
+   - **Real-browser testing.** Location, iPhone-sized layout, the RedTail flow before Sunday.
+   - **Supabase dashboard work.** SQL runs and edge-function deploys happen in Joe's browser.
+     Help him there if he asks, but keep PINs and keys out of this file and out of commits.
+   - **Code changes.** Edit `bandon-2026/index.html`, then run `tools/sync-events.sh` (Git Bash)
+     to copy it to `redtail/`. Log what you pushed in a `— pc` entry. Before the Bandon trip
+     (Oct 16–18) Joe wants only small, safe fixes.
+
 ## After-Bandon backlog (Joe's requests)
 
 - [ ] **Custom event icon.** Anyone with the event PIN can upload an icon, and the home page
