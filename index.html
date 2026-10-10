@@ -69,7 +69,7 @@ a.event:active{transform:scale(.99)}
 .tile{display:flex;flex-direction:column;gap:6px;text-decoration:none;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:left;cursor:pointer}
 .tile b{font-weight:600}
 .tile span{font-size:13px;color:var(--muted)}
-.tile svg{width:26px;height:26px;color:var(--accent)}
+.tile svg{width:28px;height:28px;color:var(--accent)}
 
 /* New event screen */
 .bar{display:flex;align-items:center;gap:10px}
@@ -120,7 +120,7 @@ body.has-install main{padding-bottom:110px}
       <span class="chip live">Next up</span>
     </a>
     <div class="event off" aria-disabled="true">
-      <div class="ico"><span class="yr">JM</span></div>
+      <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:34px;height:34px;color:var(--brand-ink)"><rect x="1.8" y="5" width="20.4" height="14" rx="4"/><text x="12" y="16.6" text-anchor="middle" font-family="'Big Shoulders Display','Arial Narrow',Impact,sans-serif" font-weight="800" font-size="11" letter-spacing=".3" fill="currentColor" stroke="none">VS</text></svg></div>
       <div><div class="t">Joe's Matches</div><div class="m">Ongoing matches and money games</div></div>
       <span class="chip soon">Coming soon</span>
     </div>
@@ -135,11 +135,11 @@ body.has-install main{padding-bottom:110px}
     <h3>Tools</h3>
     <div class="tiles">
       <a class="tile" href="map/">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>
         <b>Yardage map</b><span>GPS distances on any hole</span>
       </a>
       <button class="tile" id="newbtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2.5"/><path d="M8 3v4M16 3v4M4 10h16M12 13v5M9.5 15.5h5"/></svg>
         <b>New event</b><span>Pick formats, add rounds</span>
       </button>
     </div>
