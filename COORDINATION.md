@@ -6,6 +6,13 @@ entries headed `— pc`. Newest entries go at the top. Pull before editing.
 
 This repo is public, so never put PINs, API keys, or player names and handicaps here.
 
+## Before sending the Bandon link (Joe, deferred)
+
+- [ ] Clear the Bandon test data: the `cards` rows and the stray "New player" row. Run the
+      list query in the SQL Editor first, then the delete. The cloud session has both.
+- [ ] Confirm the "Playing from" tees for each course in Setup.
+- [ ] Send the group shipstiffs.com and the Bandon PIN.
+
 ## Green review to-do (Joe, Oct 10)
 
 Joe is reviewing these today on https://shipstiffs.com/map/. To fix one, use Mark green, then
