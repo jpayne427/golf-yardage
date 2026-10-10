@@ -196,6 +196,18 @@ body{margin:0}
 .mapwrap iframe{width:100%;height:100%;border:0;display:block}
 .pinbox{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.5);display:grid;place-items:center;padding:16px}
 .pinbox .card{width:100%;max-width:360px}
+.scanbox{position:fixed;inset:0;z-index:30;background:var(--bg);overflow-y:auto;padding:16px 16px calc(24px + env(safe-area-inset-bottom,0px))}
+.scanbox .in{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.scanbox .thumbs{display:flex;gap:8px;overflow-x:auto}
+.scanbox .thumbs img{height:90px;border-radius:8px;border:1px solid var(--line)}
+.scanbox .bad{outline:2px solid var(--warn);outline-offset:-2px}
+.scanbox .spin{width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.scanbox .spin{animation:none}}
+.scanbox .holes-grid{gap:3px}
+.scanbox .holes-grid input{padding:7px 0;font-size:15px;letter-spacing:-.02em}
+.issues{margin:0;padding-left:18px;color:var(--warn);font-size:14px}
+.scanbtn{display:flex;align-items:center;justify-content:center;gap:8px}
 .rowbtn{display:flex;gap:8px}.rowbtn .btn{flex:1}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -224,6 +236,8 @@ body{margin:0}
   <button class="x" id="install-x" aria-label="Dismiss">×</button>
 </div>
 <div id="toast" class="toast" hidden></div>
+<input id="scanfile" type="file" accept="image/*" multiple hidden>
+<div id="scanbox" class="scanbox" hidden></div>
 <div id="pinbox" class="pinbox" hidden>
   <form class="card" id="pinform">
     <h2>Keep score</h2>
@@ -531,6 +545,7 @@ function renderSetup(){
     const siSet=new Set((c.si||[]).map(num).filter(Boolean));
     const siBad=ready&&siSet.size!==18;
     h+=`<details class="card" ${S.openCourse===cid?"open":""} data-course="${esc(cid)}"><summary><span>${esc(c.name||r.name)} <span class="hint">${esc(r.day)}</span></span><span class="pill ${ready&&num(c.slope)?"":"warn"}">${ready?(num(c.slope)?"Ready":"Needs rating/slope"):"Needs card"}</span></summary>
+      ${S.readOnly?"":`<button class="btn scanbtn" data-act="scan" data-id="${esc(cid)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Scan scorecard</button>`}
       <div class="grid3">
         <div class="field"><label for="cr-${cid}">Rating</label><input id="cr-${cid}" type="number" step="0.1" inputmode="decimal" value="${esc(c.rating??"")}" data-set="course:${cid}:rating" ${dis}></div>
         <div class="field"><label for="cs-${cid}">Slope</label><input id="cs-${cid}" type="number" inputmode="numeric" value="${esc(c.slope??"")}" data-set="course:${cid}:slope" ${dis}></div>
@@ -756,6 +771,7 @@ document.addEventListener("click",e=>{
   switch(act){
     case"sround":S.scoreRound=b.dataset.id;S.scoreGroup=null;S.scoreHole=null;S.centerHole=true;ls.set("sround",S.scoreRound);render();break;
     case"pin":openPin();break;
+    case"scan":S.scanCourse=b.dataset.id;$("#scanfile").value="";$("#scanfile").click();break;
     case"ground":S.gameRound=b.dataset.id;render();break;
     case"sgroup":S.scoreGroup=b.dataset.id;S.scoreHole=null;S.centerHole=true;ls.set("sgroup",S.scoreGroup);render();break;
     case"shole":S.scoreHole=Number(b.dataset.h);S.centerHole=true;render();break;
@@ -845,6 +861,92 @@ function makeStore(sb){
     collection(c){return{onSnapshot(fn){const l={c,fn};subs.push(l);if(cache[c])fn(collSnap(c));return()=>subs.splice(subs.indexOf(l),1)}}}
   };
 }
+/* ---------- scorecard scanner ---------- */
+const SCAN={};
+function shrink(file){ // phone photos are huge: send a 1600px JPEG instead
+  return new Promise((res,rej)=>{const img=new Image(),url=URL.createObjectURL(file);
+    img.onload=()=>{const k=Math.min(1,1600/Math.max(img.naturalWidth,img.naturalHeight));
+      const c=document.createElement("canvas");c.width=Math.round(img.naturalWidth*k);c.height=Math.round(img.naturalHeight*k);
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);
+      const d=c.toDataURL("image/jpeg",0.85);res({preview:d,media_type:"image/jpeg",data:d.split(",")[1]})};
+    img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("That file isn't a photo the browser can open."))};img.src=url});
+}
+function scanView(html){const el=$("#scanbox");el.innerHTML=`<div class="in">${html}</div>`;el.hidden=false;el.scrollTop=0}
+function closeScan(){$("#scanbox").hidden=true;$("#scanbox").innerHTML=""}
+$("#scanfile").addEventListener("change",async e=>{
+  const files=[...e.target.files].slice(0,4);if(!files.length)return;
+  const r=rounds().find(x=>x.course===S.scanCourse),name=S.courses[S.scanCourse]?.name||r?.name||"this course";
+  scanView(`<h2>Scan ${esc(name)}</h2><div style="display:flex;gap:12px;align-items:center"><div class="spin" aria-hidden="true"></div><span>Reading the card… this takes about 15–40 seconds.</span></div>`);
+  let imgs;try{imgs=await Promise.all(files.map(shrink))}catch(err){scanView(`<h2>Scan failed</h2><p>${esc(err.message)}</p><button class="btn" data-scan="close">Close</button>`);return}
+  $("#scanbox .in").insertAdjacentHTML("beforeend",`<div class="thumbs">${imgs.map(i=>`<img src="${i.preview}" alt="Scorecard photo">`).join("")}</div>`);
+  const cfg=window.BATTLE_CONFIG||{};
+  try{
+    const resp=await fetch(cfg.url+"/functions/v1/scan-scorecard",{method:"POST",headers:{"Content-Type":"application/json",apikey:cfg.anonKey,Authorization:"Bearer "+cfg.anonKey},
+      body:JSON.stringify({pin:S.pin,images:imgs.map(({media_type,data})=>({media_type,data}))})});
+    const out=await resp.json().catch(()=>({error:"The scan service didn't answer properly."}));
+    if(resp.status===403&&out.error==="wrong_pin"){closeScan();writeFailed({code:"wrong_pin"});return}
+    if(!resp.ok||!out.card)throw new Error(out.error||"The scan didn't work.");
+    SCAN.card=out.card;SCAN.imgs=imgs;SCAN.tee=0;
+    const holes={};(out.card.holes||[]).forEach(h=>{if(h.hole>=1&&h.hole<=18)holes[h.hole]=h});
+    SCAN.pars=Array.from({length:18},(_,i)=>holes[i+1]?.par??null);
+    SCAN.si=Array.from({length:18},(_,i)=>holes[i+1]?.si??null);
+    const t=(out.card.tees||[])[0]||{};SCAN.rating=t.rating??null;SCAN.slope=t.slope??null;
+    drawReview();
+  }catch(err){scanView(`<h2>Scan failed</h2><p>${esc(err.message||"Check your connection and try again.")}</p><div class="rowbtn"><button class="btn" data-scan="close">Close</button><button class="btn primary" data-scan="retry">Try another photo</button></div>`)}
+});
+function scanIssues(){
+  const iss=[],pars=SCAN.pars,si=SCAN.si;
+  const missP=pars.map((v,i)=>v==null?i+1:null).filter(Boolean),missS=si.map((v,i)=>v==null?i+1:null).filter(Boolean);
+  if(missP.length)iss.push(`No par for hole${missP.length>1?"s":""} ${missP.join(", ")}`);
+  if(missS.length)iss.push(`No stroke index for hole${missS.length>1?"s":""} ${missS.join(", ")}`);
+  const seen={};si.forEach(v=>{if(v!=null)seen[v]=(seen[v]||0)+1});
+  const dup=Object.keys(seen).filter(k=>seen[k]>1);if(dup.length)iss.push(`Stroke index used twice: ${dup.join(", ")}`);
+  if(si.some(v=>v!=null&&(v<1||v>18)))iss.push("Stroke index must be 1–18");
+  if(pars.some(v=>v!=null&&(v<3||v>6)))iss.push("A par looks wrong (should be 3, 4 or 5)");
+  const tot=pars.reduce((a,v)=>a+(v||0),0);if(!missP.length&&(tot<66||tot>74))iss.push(`Par adds up to ${tot}. Check it`);
+  if(SCAN.rating==null||SCAN.slope==null)iss.push("Rating or slope missing for the chosen tee");
+  return iss;
+}
+function drawReview(){
+  const card=SCAN.card,tees=card.tees||[],iss=scanIssues(),tot=SCAN.pars.reduce((a,v)=>a+(v||0),0);
+  const dupSet=new Set();const seen={};SCAN.si.forEach(v=>{if(v!=null){if(seen[v])dupSet.add(v);seen[v]=1}});
+  const cell=(k,i)=>{const v=SCAN[k][i];const bad=v==null||(k==="si"&&dupSet.has(v));
+    return`<input type="number" inputmode="numeric" aria-label="Hole ${i+1} ${k==="si"?"stroke index":"par"}" value="${v??""}" data-scancell="${k}:${i}" class="${bad?"bad":""}" ${k==="si"?'style="background:var(--sunk)"':""}>`};
+  let h=`<div class="rhead"><h2>Check the card</h2><button class="btn" data-scan="close" style="padding:8px 12px">Cancel</button></div>
+    <p class="hint" style="margin:0">Read from ${SCAN.imgs.length} photo${SCAN.imgs.length>1?"s":""}${card.course_name?` of <b>${esc(card.course_name)}</b>`:""}. Fix anything highlighted, then save.</p>
+    <div class="thumbs">${SCAN.imgs.map(i=>`<img src="${i.preview}" alt="Scorecard photo">`).join("")}</div>`;
+  h+=iss.length?`<div class="banner"><b>Check these:</b><ul class="issues">${iss.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:`<div class="banner" style="background:var(--t1-soft)">Everything adds up. Par ${tot}, stroke index 1–18 used once each.</div>`;
+  h+=`<section class="card"><div class="field"><label for="scantee">Tees you're playing</label><select id="scantee">${tees.map((t,i)=>`<option value="${i}" ${i===SCAN.tee?"selected":""}>${esc(t.name)}${t.rating!=null||t.slope!=null?` · ${t.rating??"?"}/${t.slope??"?"}`:""}</option>`).join("")||"<option>No tees found</option>"}</select></div>
+    <div class="grid2"><div class="field"><label for="scanrating">Rating</label><input id="scanrating" type="number" step="0.1" inputmode="decimal" value="${SCAN.rating??""}" class="${SCAN.rating==null?"bad":""}"></div>
+    <div class="field"><label for="scanslope">Slope</label><input id="scanslope" type="number" inputmode="numeric" value="${SCAN.slope??""}" class="${SCAN.slope==null?"bad":""}"></div></div></section>`;
+  h+=`<section class="card">`;
+  for(const half of [[0,9],[9,18]]){h+=`<div class="holes-grid">`;
+    for(let i=half[0];i<half[1];i++)h+=`<span class="hl">${i+1}</span>`;
+    for(let i=half[0];i<half[1];i++)h+=cell("pars",i);
+    for(let i=half[0];i<half[1];i++)h+=cell("si",i);h+=`</div>`}
+  h+=`<p class="hint" style="margin:0">Top row par (total ${tot}), shaded row stroke index.</p></section>`;
+  if(card.notes)h+=`<p class="hint" style="margin:0"><b>Scanner notes:</b> ${esc(card.notes)}</p>`;
+  h+=`<div class="rowbtn"><button class="btn" data-scan="retry">Rescan</button><button class="btn primary" data-scan="save">Save to course</button></div>`;
+  scanView(h);
+}
+$("#scanbox").addEventListener("change",e=>{
+  const t=e.target;
+  if(t.dataset.scancell){const [k,i]=t.dataset.scancell.split(":");SCAN[k][+i]=num(t.value);drawReview()}
+  else if(t.id==="scantee"){SCAN.tee=+t.value;const tee=(SCAN.card.tees||[])[SCAN.tee]||{};SCAN.rating=tee.rating??null;SCAN.slope=tee.slope??null;drawReview()}
+  else if(t.id==="scanrating"){SCAN.rating=num(t.value);drawReview()}
+  else if(t.id==="scanslope"){SCAN.slope=num(t.value);drawReview()}
+});
+$("#scanbox").addEventListener("click",e=>{
+  const a=e.target.closest("[data-scan]");if(!a)return;
+  if(a.dataset.scan==="close")closeScan();
+  else if(a.dataset.scan==="retry"){closeScan();$("#scanfile").value="";$("#scanfile").click()}
+  else if(a.dataset.scan==="save"){
+    const cid=S.scanCourse,tee=(SCAN.card.tees||[])[SCAN.tee]||{};
+    const data={pars:SCAN.pars,si:SCAN.si,par:SCAN.pars.every(v=>v!=null)?SCAN.pars.reduce((x,y)=>x+y,0):null,rating:SCAN.rating,slope:SCAN.slope,tees:tee.name||"",source:"Scanned from the scorecard"};
+    if(SCAN.card.course_name&&!S.courses[cid]?.name)data.name=SCAN.card.course_name;
+    updDoc("courses/"+cid,data);closeScan();S.openCourse=cid;render();toast("Saved. Check the course card on Setup.");
+  }
+});
 function openPin(){$("#pinmsg").textContent="";$("#pin").value="";$("#pinbox").hidden=false;setTimeout(()=>$("#pin").focus(),50)}
 $("#pincancel").onclick=()=>{$("#pinbox").hidden=true};
 $("#pinform").addEventListener("submit",async e=>{
