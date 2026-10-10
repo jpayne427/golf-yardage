@@ -1,21 +1,26 @@
 """Build greens.json (front/middle/back of each green) from OpenStreetMap.
 
-Uses golf=hole lines (drawn tee -> green) and golf=green polygons inside the
-Bandon Dunes resort. Front/back are where the line of play, extended through
+Uses golf=hole lines (drawn tee -> green) and golf=green polygons for each
+area in AREAS (Bandon Dunes resort, RedTail in Portland, ...). Front/back are where the line of play, extended through
 the green's center, crosses the green's edge. Entries already in greens.json
 that were not generated here (no "src": "osm") are kept as-is.
 """
 import json, math, re, time, traceback, urllib.parse, urllib.request
 
-BBOX = (43.14, -124.44, 43.25, -124.35)  # south, west, north, east
-COURSES = [  # (id, name pattern) - first match wins; None = ignore
-    (None, r"preserve|shorty|punchbowl|practice|range"),
-    ("sheep", r"sheep"),
-    ("trails", r"trails"),
-    ("oldmac", r"old\s*mac"),
-    ("pacific", r"pacific"),
-    ("dunes", r"bandon dunes"),
+# Each area is fetched and matched separately. courses: (id, name pattern), first match wins,
+# None = ignore. named: courses with their own OSM outline. shared: courses that share one
+# outline and are told apart by card pars. default: id for routings when the area has one course.
+AREAS = [
+    {"name": "Bandon Dunes", "bbox": (43.14, -124.44, 43.25, -124.35),
+     "courses": [(None, r"preserve|shorty|punchbowl|practice|range"), ("sheep", r"sheep"), ("trails", r"trails"),
+                 ("oldmac", r"old\s*mac"), ("pacific", r"pacific"), ("dunes", r"bandon dunes")],
+     "named": ("sheep", "trails"), "shared": ("oldmac", "dunes", "pacific"), "default": None,
+     "ids": ["sheep", "trails", "oldmac", "dunes", "pacific"]},
+    {"name": "RedTail (Portland)", "bbox": (45.42, -122.86, 45.51, -122.73),
+     "courses": [(None, r"practice|range|driving|par\s*3|executive|pitch"), ("redtail", r"red\s*tail")],
+     "named": ("redtail",), "shared": (), "default": "redtail", "ids": ["redtail"]},
 ]
+BBOX = AREAS[0]["bbox"]; COURSES = AREAS[0]["courses"]; AREA = AREAS[0]   # set per area in main()
 # card pars, used to check which routing belongs to which course
 PARS = {
     "sheep":  [5,4,3,4,3,4,3,4,4,4,5,4,5,4,4,3,4,5],
@@ -57,6 +62,10 @@ def overpass():
 # local flat projection (metres) around the resort
 LAT0 = (BBOX[0] + BBOX[2]) / 2
 KX, KY = 111320 * math.cos(math.radians(LAT0)), 110540
+def use_area(a):
+    global BBOX, COURSES, AREA, LAT0, KX
+    AREA, BBOX, COURSES = a, a["bbox"], a["courses"]
+    LAT0 = (BBOX[0] + BBOX[2]) / 2; KX = 111320 * math.cos(math.radians(LAT0))
 def xy(p): return (p[1] * KX, p[0] * KY)
 def ll(q): return [round(q[1] / KY, 6), round(q[0] / KX, 6)]
 
@@ -107,7 +116,7 @@ def course_id(name):
         if re.search(pat, name or "", re.I): return cid, True
     return None, False
 
-def main():
+def process():
     els = overpass()
     courses, greens, holes = [], [], []
     for el in els:
@@ -154,7 +163,7 @@ def main():
         votes = {}
         for h in chain:
             hits = sorted([c for c in courses if c[0] and inside(h["line"][-1], c[2])], key=lambda c: c[1])
-            if hits and hits[0][0] in ("sheep", "trails"):
+            if hits and hits[0][0] in AREA["named"]:
                 votes[hits[0][0]] = votes.get(hits[0][0], 0) + 1
         return max(votes, key=votes.get) if votes else None
     def par_of(yd): return 3 if yd < 250 else 5 if yd > 475 else 4
@@ -168,12 +177,16 @@ def main():
         else: rest.append(i)
     # resort courses share one outline: give each routing the course whose card pars it fits best
     import itertools
-    left = [c for c in ("oldmac", "dunes", "pacific") if c not in labels.values()]
+    left = [c for c in AREA["shared"] if c not in labels.values()]
     best, best_score = (), -1
     for perm in itertools.permutations(left, min(len(left), len(rest))):
         score = sum(par_match(chains[i], cid) for i, cid in zip(rest, perm))
         if score > best_score: best, best_score = perm, score
     for i, cid in zip(rest, best): labels[i] = cid
+    # single-course area with no outline in OSM: the longest routing is that course
+    if AREA["default"] and AREA["default"] not in labels.values():
+        free = [i for i in range(len(chains)) if i not in labels]
+        if free: labels[max(free, key=lambda i: len(chains[i]))] = AREA["default"]
     report.append(f"Routings found: {len(chains)} (lengths {', '.join(str(len(c)) for c in chains)})")
     for i, ch in enumerate(chains):
         cid = labels.get(i, "?")
@@ -214,6 +227,30 @@ def main():
             entry["T"] = ll(line[0])  # tee end of the hole line, used to point the map up the hole
             found[key] = entry
 
+    names = sorted({c[3] for c in courses})
+    report.insert(0, f"OSM courses matched: {', '.join(names) or 'none'}")
+    report.insert(1, f"Hole lines: {len(holes)}  Green outlines: {len(greens)}")
+    for cid in AREA["ids"]:
+        ks = [f"{cid}-{h}" for h in range(1, 19)]
+        have = [k for k in ks if k in found]
+        full = [k for k in have if "F" in found[k]]
+        missing = [k.split("-")[1] for k in ks if k not in found]
+        report.append(f"{cid}: {len(full)} full F/M/B, {len(have) - len(full)} middle only, missing holes: {', '.join(missing) or 'none'}")
+        for k in have:
+            report.append(f"  {k}: {found[k]['_note']}")
+    return found, report
+
+def main():
+    found, report, failed = {}, [], set()
+    for a in AREAS:
+        use_area(a)
+        report.append(f"===== {a['name']} =====")
+        try:
+            f, r = process()
+            found.update(f); report += r
+        except Exception:
+            failed.update(a["ids"])
+            report.append("FAILED\n" + traceback.format_exc())
     try:
         existing = json.load(open("greens.json"))
     except Exception:
@@ -224,19 +261,11 @@ def main():
             out[k] = {kk: vv for kk, vv in v.items() if not kk.startswith("_")}
         elif "T" not in out[k]:
             out[k]["T"] = v["T"]  # hand-marked green: borrow the tee from the map
+    # an area whose download failed this time keeps the greens it had
+    for k, v in existing.items():
+        if v.get("src") == "osm" and k.split("-")[0] in failed and k not in out:
+            out[k] = v
     json.dump(dict(sorted(out.items())), open("greens.json", "w"), separators=(",", ":"))
-
-    names = sorted({c[3] for c in courses})
-    report.insert(0, f"OSM courses matched: {', '.join(names) or 'none'}")
-    report.insert(1, f"Hole lines: {len(holes)}  Green outlines: {len(greens)}")
-    for cid in ["sheep", "trails", "oldmac", "dunes", "pacific"]:
-        ks = [f"{cid}-{h}" for h in range(1, 19)]
-        have = [k for k in ks if k in found]
-        full = [k for k in have if "F" in found[k]]
-        missing = [k.split("-")[1] for k in ks if k not in found]
-        report.append(f"{cid}: {len(full)} full F/M/B, {len(have) - len(full)} middle only, missing holes: {', '.join(missing) or 'none'}")
-        for k in have:
-            report.append(f"  {k}: {found[k]['_note']}")
     open("greens-report.txt", "w").write("\n".join(report) + "\n")
     print("\n".join(report))
 
