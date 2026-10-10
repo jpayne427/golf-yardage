@@ -288,6 +288,12 @@ function shortName(pid){
 }
 const holesOf=m=>{const a=[];for(let h=num(m.from)||1;h<=(num(m.to)||18);h++)a.push(h);return a};
 const holesLabel=m=>{const f=num(m.from),t=num(m.to);if(f===1&&t===9)return"Front 9";if(f===10&&t===18)return"Back 9";if(f===1&&t===18)return"18 holes";return`Holes ${f}–${t}`};
+const teeSetsOf=c=>Array.isArray(c?.teeSets)?c.teeSets:[];
+const fmtTee=t=>`${t.name||"Tees"}${t.rating!=null||t.slope!=null?` · ${t.rating??"?"}/${t.slope??"?"}`:""}`;
+function teeSelect(cid,id){
+  const c=S.courses[cid]||{},ts=teeSetsOf(c),cur=ts.findIndex(t=>t.name===c.tees);
+  return`<select id="${id}" data-set="teesel:${esc(cid)}" ${S.readOnly?"disabled":""} aria-label="Tees">${cur<0?`<option value="">Choose tees…</option>`:""}${ts.map((t,i)=>`<option value="${i}" ${i===cur?"selected":""}>${esc(fmtTee(t))}</option>`).join("")}</select>`;
+}
 const courseReady=c=>!!c&&Array.isArray(c.pars)&&Array.isArray(c.si)&&c.pars.length===18&&c.si.length===18&&c.pars.every(v=>num(v))&&c.si.every(v=>num(v));
 function courseHcp(pid,c){
   const idx=num(S.players[pid]?.index);if(idx==null)return{v:0,est:true,missing:true};
@@ -471,6 +477,7 @@ function renderScore(){
   const G=groups.find(g=>g.key===S.scoreGroup);
   let h=`<section class="sec"><div class="chips" id="rchips">${rs.map(x=>`<button class="chip" data-act="sround" data-id="${esc(x.id)}" aria-pressed="${x.id===r.id}">${esc(x.name)}<small>${esc(x.day)}</small></button>`).join("")}</div>`;
   h+=`<div class="chips">${groups.map(g=>`<button class="chip" data-act="sgroup" data-id="${esc(g.key)}" aria-pressed="${g.key===S.scoreGroup}">${esc(g.key)}<small>${esc([...g.t1,...g.t2].map(shortName).join(", ")||"no players yet")}</small></button>`).join("")}</div></section>`;
+  if(teeSetsOf(c).length)h+=`<div class="field" style="flex-direction:row;align-items:center;gap:10px"><label for="score-tee" style="flex:none">Tees today</label>${teeSelect(r.course,"score-tee")}</div>`;
   if(!ready)h+=`<div class="banner"><b>No scorecard for ${esc(r.name)} yet.</b> You can still enter gross scores; net results appear once pars and stroke indexes are added on Setup.</div>`;
   if(!G)return h+`<div class="empty">No groups in this round.</div>`;
   const players=[...G.t1,...G.t2];
@@ -552,11 +559,19 @@ function renderSetup(){
     h+=`<details class="card" ${S.openCourse===cid?"open":""} data-course="${esc(cid)}"><summary><span>${esc(c.name||r.name)} <span class="hint">${esc(r.day)}</span></span><span class="pill ${ready&&num(c.slope)?"":"warn"}">${ready?(num(c.slope)?"Ready":"Needs rating/slope"):"Needs card"}</span></summary>
       ${S.readOnly?"":`<button class="btn scanbtn" data-act="scan" data-id="${esc(cid)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Scan scorecard</button>`}
       <div class="grid3">
-        <div class="field"><label for="cr-${cid}">Rating</label><input id="cr-${cid}" type="number" step="0.1" inputmode="decimal" value="${esc(c.rating??"")}" data-set="course:${cid}:rating" ${dis}></div>
+        <div class="field"><label for="cr-${cid}">Rating${c.tees?` (${esc(c.tees)})`:""}</label><input id="cr-${cid}" type="number" step="0.1" inputmode="decimal" value="${esc(c.rating??"")}" data-set="course:${cid}:rating" ${dis}></div>
         <div class="field"><label for="cs-${cid}">Slope</label><input id="cs-${cid}" type="number" inputmode="numeric" value="${esc(c.slope??"")}" data-set="course:${cid}:slope" ${dis}></div>
         <div class="field"><label for="cp-${cid}">Par</label><input id="cp-${cid}" type="number" inputmode="numeric" value="${esc(c.par??"")}" data-set="course:${cid}:par" ${dis}></div>
       </div>
-      <div class="field"><label for="ct-${cid}">Tees</label><input id="ct-${cid}" type="text" value="${esc(c.tees??"")}" placeholder="e.g. Green" data-set="course:${cid}:tees" ${dis}></div>`;
+`;
+    const ts=teeSetsOf(c);
+    h+=`<div class="field"><label>Saved tees</label>${ts.length?ts.map((t,i)=>`<div class="plrow" style="grid-template-columns:minmax(0,1fr) 72px 64px 36px">
+        <input type="text" aria-label="Tee name" value="${esc(t.name??"")}" data-set="tee:${cid}:${i}:name" ${dis}>
+        <input type="number" step="0.1" inputmode="decimal" aria-label="${esc(t.name)} rating" placeholder="Rating" value="${esc(t.rating??"")}" data-set="tee:${cid}:${i}:rating" ${dis}>
+        <input type="number" inputmode="numeric" aria-label="${esc(t.name)} slope" placeholder="Slope" value="${esc(t.slope??"")}" data-set="tee:${cid}:${i}:slope" ${dis}>
+        ${S.readOnly?"<span></span>":`<button class="x" data-act="deltee" data-id="${esc(cid)}:${i}" aria-label="Remove ${esc(t.name)}">×</button>`}</div>`).join(""):`<p class="hint" style="margin:0">None yet. Scan the card, or add each tee's rating and slope here.</p>`}
+      ${S.readOnly?"":`<button class="btn" data-act="addtee" data-id="${esc(cid)}">Add tees</button>`}</div>`;
+    if(ts.length)h+=`<div class="field"><label for="tsel-${cid}">Playing from</label>${teeSelect(cid,"tsel-"+cid)}</div>`;
     for(const half of [[1,9],[10,18]]){
       h+=`<div class="holes-grid">`;
       for(let x=half[0];x<=half[1];x++)h+=`<span class="hl">${x}</span>`;
@@ -776,6 +791,8 @@ document.addEventListener("click",e=>{
   switch(act){
     case"sround":S.scoreRound=b.dataset.id;S.scoreGroup=null;S.scoreHole=null;S.centerHole=true;ls.set("sround",S.scoreRound);render();break;
     case"pin":openPin();break;
+    case"addtee":{const cid=b.dataset.id,c=S.courses[cid]||{};S.openCourse=cid;updDoc("courses/"+cid,{teeSets:[...teeSetsOf(c),{name:"New tees",rating:null,slope:null,par:num(c.par)}]});break}
+    case"deltee":{const [cid,i]=b.dataset.id.split(":"),c=S.courses[cid]||{},ts=teeSetsOf(c).filter((_,k)=>k!==+i);S.openCourse=cid;updDoc("courses/"+cid,{teeSets:ts});break}
     case"scan":S.scanCourse=b.dataset.id;SCAN.tray=[];SCAN.trayFor=b.dataset.id;$("#scanfile").value="";$("#scanfile").click();break;
     case"ground":S.gameRound=b.dataset.id;render();break;
     case"sgroup":S.scoreGroup=b.dataset.id;S.scoreHole=null;S.centerHole=true;ls.set("sgroup",S.scoreGroup);render();break;
@@ -805,6 +822,19 @@ document.addEventListener("change",e=>{
     else if(kind==="skins")updDoc("setup/main",{skins:{[id]:id==="offLow"||id==="carry"?v==="1":id==="allow"?(num(v)??100):(num(v)||0)}});
     else if(kind==="allow")updDoc("setup/main",{allowances:{[id]:num(v)??DEFAULT_ALLOW[id]}});
     else if(kind==="player")updDoc("players/"+id,{[field]:field==="index"?num(v):field==="name"?v.trim():v});
+    else if(kind==="teesel"){
+      const c=S.courses[id]||{},t=teeSetsOf(c)[+v];if(!t)return;
+      const data={tees:t.name,rating:num(t.rating),slope:num(t.slope)};if(num(t.par))data.par=num(t.par);
+      updDoc("courses/"+id,data);toast(`Playing the ${t.name} tees. Handicaps updated.`);
+    }
+    else if(kind==="tee"){
+      const c=S.courses[id]||{},ts=teeSetsOf(c).map(t=>({...t})),i=+field,prop=hole,t=ts[i];if(!t)return;
+      const wasActive=t.name===c.tees;
+      t[prop]=prop==="name"?v.trim():num(v);
+      const data={teeSets:ts};
+      if(wasActive){data.tees=t.name;data.rating=num(t.rating);data.slope=num(t.slope)}
+      updDoc("courses/"+id,data);
+    }
     else if(kind==="course"){
       const c=S.courses[id]||{};
       if(field==="pars"||field==="si"){const arr=Array.from({length:18},(_,i)=>num((c[field]||[])[i]));arr[Number(hole)-1]=num(v);
@@ -970,7 +1000,8 @@ $("#scanbox").addEventListener("click",e=>{
   else if(a.dataset.scan==="read"){if(SCAN.tray.length)readCard()}
   else if(a.dataset.scan==="save"){
     const cid=S.scanCourse,tee=(SCAN.card.tees||[])[SCAN.tee]||{};
-    const data={pars:SCAN.pars,si:SCAN.si,par:SCAN.pars.every(v=>v!=null)?SCAN.pars.reduce((x,y)=>x+y,0):null,rating:SCAN.rating,slope:SCAN.slope,tees:tee.name||"",source:"Scanned from the scorecard"};
+    const teeSets=(SCAN.card.tees||[]).map((t,i)=>({name:t.name,rating:i===SCAN.tee?SCAN.rating:(t.rating??null),slope:i===SCAN.tee?SCAN.slope:(t.slope??null),par:t.par??null}));
+    const data={pars:SCAN.pars,si:SCAN.si,par:SCAN.pars.every(v=>v!=null)?SCAN.pars.reduce((x,y)=>x+y,0):null,rating:SCAN.rating,slope:SCAN.slope,tees:tee.name||"",teeSets,source:"Scanned from the scorecard"};
     if(!S.courses[cid]?.name)data.name={pacific:"Pacific Dunes"}[cid]||SCAN.card.course_name||cid;
     updDoc("courses/"+cid,data);closeScan();S.openCourse=cid;render();toast("Saved. Check the course card on Setup.");
   }

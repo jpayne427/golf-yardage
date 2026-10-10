@@ -60,7 +60,7 @@ const SCHEMA = {
 const PROMPT = `These photos are a golf course scorecard (front and/or back). Read it and fill in the schema.
 
 - holes: every hole 1-18 with its par and the men's handicap (stroke index) row. If the card has separate men's and women's handicap rows, use the men's row and say so in notes. If par differs by tee, use the par for the longest common men's tee and mention the difference in notes.
-- tees: every tee set printed, with its course rating and slope if shown (often near the tee name, in a small table, or written like "71.4/128"), its total par, and its 18 hole yardages.
+- tees: every tee set printed, with its course rating and slope if shown (often near the tee name, in a small table, or written like "71.4/128"), its total par, and its 18 hole yardages. When a tee lists separate men's and women's ratings (e.g. "M-71.4/127 W-77.6/138"), use the men's. Include tee sets printed anywhere on the card, including ones on the far side of the par column.
 - Use null for anything you can't read. Never guess a number - a null is better than a wrong value, because a person will review and fill in blanks.
 - notes: briefly list anything unreadable, ambiguous, or that a person should double-check.`;
 
