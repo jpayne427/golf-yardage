@@ -1,0 +1,23 @@
+name: Satellite crops of greens to mark by eye
+on:
+  workflow_dispatch:
+  push:
+    paths: ["tools/green_crops.py", ".github/workflows/green-crops.yml"]
+permissions:
+  contents: write
+jobs:
+  crops:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pillow
+      - run: python3 tools/green_crops.py
+      - name: Push crops to the green-crops branch
+        run: |
+          git config user.name "greens-bot"
+          git config user.email "greens-bot@users.noreply.github.com"
+          git checkout --orphan green-crops
+          git rm -rq --cached .
+          git add crops
+          git commit -qm "Green crops"
+          git push -f origin green-crops

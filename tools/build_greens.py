@@ -225,6 +225,7 @@ def process():
                     else:
                         entry = {"M": ll(g[1]), "src": "osm", "_note": f"odd green shape ({round(depth)} yd deep), middle = green center"}
             entry["T"] = ll(line[0])  # tee end of the hole line, used to point the map up the hole
+            entry["_A"] = ll(back)    # ~60 m short of the green on the line of play (tools/green_crops.py)
             found[key] = entry
 
     names = sorted({c[3] for c in courses})
