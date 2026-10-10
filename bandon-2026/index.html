@@ -539,7 +539,12 @@ function renderSetup(){
     <p class="hint">${["t1","t2"].map(t=>`${esc(teamName(t))}: ${tot[t].length} players, index total ${sum(tot[t]).toFixed(1)}${tot[t].length?` (avg ${(sum(tot[t])/tot[t].length).toFixed(1)})`:""}`).join(" · ")}</p></div></section>`;
 
   h+=`<section class="sec"><h2>Courses</h2><p class="hint">Course handicap = Index × Slope ÷ 113 + (Rating − Par), rounded. Until rating and slope are in, the app uses the index rounded and marks results as estimated.</p>`;
-  for(const r of rounds()){
+  // scheduled courses first, then other courses we keep cards for (ready if plans change)
+  const EXTRA_COURSES={pacific:"Pacific Dunes"};
+  const listed=new Set(rounds().map(r=>r.course));
+  const courseCards=[...rounds(),...[...new Set([...Object.keys(EXTRA_COURSES),...Object.keys(S.courses)])].filter(id=>!listed.has(id))
+    .map(id=>({course:id,name:S.courses[id]?.name||EXTRA_COURSES[id]||id,day:"Not on the schedule"}))];
+  for(const r of courseCards){
     const cid=r.course,c=S.courses[cid]||{};const ready=courseReady(c);
     const parSum=(c.pars||[]).reduce((a,v)=>a+(num(v)||0),0);
     const siSet=new Set((c.si||[]).map(num).filter(Boolean));
@@ -875,7 +880,7 @@ function scanView(html){const el=$("#scanbox");el.innerHTML=`<div class="in">${h
 function closeScan(){$("#scanbox").hidden=true;$("#scanbox").innerHTML=""}
 $("#scanfile").addEventListener("change",async e=>{
   const files=[...e.target.files].slice(0,4);if(!files.length)return;
-  const r=rounds().find(x=>x.course===S.scanCourse),name=S.courses[S.scanCourse]?.name||r?.name||"this course";
+  const r=rounds().find(x=>x.course===S.scanCourse),name=S.courses[S.scanCourse]?.name||r?.name||{pacific:"Pacific Dunes"}[S.scanCourse]||"this course";
   scanView(`<h2>Scan ${esc(name)}</h2><div style="display:flex;gap:12px;align-items:center"><div class="spin" aria-hidden="true"></div><span>Reading the card… this takes about 15–40 seconds.</span></div>`);
   let imgs;try{imgs=await Promise.all(files.map(shrink))}catch(err){scanView(`<h2>Scan failed</h2><p>${esc(err.message)}</p><button class="btn" data-scan="close">Close</button>`);return}
   $("#scanbox .in").insertAdjacentHTML("beforeend",`<div class="thumbs">${imgs.map(i=>`<img src="${i.preview}" alt="Scorecard photo">`).join("")}</div>`);
@@ -943,7 +948,7 @@ $("#scanbox").addEventListener("click",e=>{
   else if(a.dataset.scan==="save"){
     const cid=S.scanCourse,tee=(SCAN.card.tees||[])[SCAN.tee]||{};
     const data={pars:SCAN.pars,si:SCAN.si,par:SCAN.pars.every(v=>v!=null)?SCAN.pars.reduce((x,y)=>x+y,0):null,rating:SCAN.rating,slope:SCAN.slope,tees:tee.name||"",source:"Scanned from the scorecard"};
-    if(SCAN.card.course_name&&!S.courses[cid]?.name)data.name=SCAN.card.course_name;
+    if(!S.courses[cid]?.name)data.name={pacific:"Pacific Dunes"}[cid]||SCAN.card.course_name||cid;
     updDoc("courses/"+cid,data);closeScan();S.openCourse=cid;render();toast("Saved. Check the course card on Setup.");
   }
 });
