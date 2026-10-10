@@ -6,6 +6,36 @@ entries headed `— pc`. Newest entries go at the top. Pull before editing.
 
 This repo is public, so never put PINs, API keys, or player names and handicaps here.
 
+## Green review to-do (Joe, Oct 10)
+
+Joe is reviewing these today on https://shipstiffs.com/map/. To fix one, use Mark green, then
+⋯ → Share data, and paste the result to the cloud session, which adds it to `greens.json`
+and ticks the box.
+
+**No front/back yet (mark these):**
+- [ ] Bandon Dunes 10
+- [ ] Pacific 3
+- [ ] Pacific 12
+- [ ] Trails 10
+- [ ] RedTail 2
+- [ ] RedTail 10
+- [ ] RedTail 13
+- [ ] RedTail 15
+
+**Marked by eye, least certain (check these):**
+- [ ] Old Mac 10
+- [ ] Old Mac 11
+- [ ] Old Mac 12
+- [ ] Bandon Dunes 6
+- [ ] Bandon Dunes 15
+- [ ] Pacific 6
+- [ ] Pacific 11
+- [ ] RedTail 4
+- [ ] RedTail 5
+- [ ] RedTail 9
+- [ ] RedTail 14
+- [ ] RedTail 17
+
 ---
 
 ## 2026-10-10 15:51 UTC — cloud
