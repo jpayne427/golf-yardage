@@ -612,6 +612,11 @@ function renderSetup(){
     <div class="grid2"><div class="field"><label for="sk-low">Strokes</label><select id="sk-low" data-set="skins:offLow" ${dis}><option value="0" ${!sk.offLow?"selected":""}>Full strokes</option><option value="1" ${sk.offLow?"selected":""}>Off the low player</option></select></div>
     <div class="field"><label for="sk-carry">Ties</label><select id="sk-carry" data-set="skins:carry" ${dis}><option value="1" ${sk.carry?"selected":""}>Carry over</option><option value="0" ${!sk.carry?"selected":""}>No skin, no carry</option></select></div></div>
     <p class="hint">Everyone playing the round is in. Lowest net score on a hole wins it outright; picked-up holes can't win.</p></div></section>`;
+  h+=`<section class="sec"><h2>Trip PIN</h2><div class="card">
+    <p class="hint" style="margin:0">Change the PIN everyone uses to keep score. Needs the organizer PIN. Other phones will be asked for the new PIN the next time they save something.</p>
+    <div class="grid2"><div class="field"><label for="pin-admin">Organizer PIN</label><input id="pin-admin" type="password" autocomplete="off"></div>
+    <div class="field"><label for="pin-new">New trip PIN</label><input id="pin-new" type="text" autocomplete="off" autocapitalize="off"></div></div>
+    <button class="btn" data-act="changepin">Change trip PIN</button></div></section>`;
   h+=`<section class="sec"><h2>Handicap allowances</h2><div class="card">`;
   for(const k of Object.keys(FORMATS)){
     h+=`<div class="plrow" style="grid-template-columns:minmax(0,1fr) 80px"><div><div style="font-weight:600">${FORMATS[k].label}</div><div class="hint">${ALLOW_NOTE[k]}</div></div><input id="al-${k}" type="number" inputmode="numeric" aria-label="${FORMATS[k].label} allowance percent" value="${esc(S.setup?.allowances?.[k]??DEFAULT_ALLOW[k])}" data-set="allow:${k}" ${dis}></div>`;
@@ -817,6 +822,7 @@ document.addEventListener("click",e=>{
   switch(act){
     case"sround":S.scoreRound=b.dataset.id;S.scoreGroup=null;S.scoreHole=null;S.centerHole=true;ls.set(navKey("sround"),S.scoreRound);render();break;
     case"pin":openPin();break;
+    case"changepin":changePin();break;
     case"holes":{const m=S.matches[S.openMatch];const [a,z]=b.dataset.r.split("-").map(Number);if(m)updDoc("matches/"+m.id,{from:a,to:z});break}
     case"newevent":createEvent();break;
     case"addtee":{const cid=b.dataset.id,c=S.courses[cid]||{};S.openCourse=cid;updDoc("courses/"+cid,{teeSets:[...teeSetsOf(c),{name:"New tees",rating:null,slope:null,par:num(c.par)}]});break}
@@ -1079,6 +1085,15 @@ $("#scanbox").addEventListener("click",e=>{
     updDoc("courses/"+cid,data);closeScan();S.openCourse=cid;render();toast("Saved. Check the course card on Setup.");
   }
 });
+async function changePin(){
+  const admin=$("#pin-admin").value.trim(),pin=$("#pin-new").value.trim();
+  if(!admin||!pin){toast("Enter the organizer PIN and the new trip PIN.");return}
+  const {data,error}=await S.sb.rpc("change_pin",{p_admin:admin,p_new:pin});
+  const msg={ok:"Trip PIN changed. This phone is unlocked with the new one.",wrong_admin:"That organizer PIN isn't right.",too_short:"Use at least 4 characters for the trip PIN.",not_set_up:"PIN changes aren't switched on yet (run change-pin.sql in Supabase)."};
+  if(error){toast(/change_pin/.test(error.message||"")?msg.not_set_up:"Couldn't change the PIN. Check your connection.");return}
+  if(data==="ok"){S.pin=pin;ls.set("pin",pin);S.readOnly=false;$("#pin-admin").value="";$("#pin-new").value="";render()}
+  toast(msg[data]||"Couldn't change the PIN.");
+}
 function openPin(){$("#pinmsg").textContent="";$("#pin").value="";$("#pinbox").hidden=false;setTimeout(()=>$("#pin").focus(),50)}
 $("#pincancel").onclick=()=>{$("#pinbox").hidden=true};
 $("#pinform").addEventListener("submit",async e=>{
