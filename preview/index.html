@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#064C34">
+<link rel="icon" type="image/png" href="../brand/favicon-64.png">
+<link rel="apple-touch-icon" href="../brand/apple-touch-icon.png">
+<title>ShipStiffs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one column, phone first. Clubhouse-board feel: deep links green hero with the tag logo, event "bag tags" below as big tappable cards. */
+:root{
+  --bg:#EDF0EC; --surface:#FFFFFF; --sunk:#E2E7E2; --ink:#14201A; --muted:#5A6A62; --line:#CFD8D1;
+  --brand:#064C34; --brand-ink:#F2F6F3; --accent:#1E5A42; --accent-ink:#FFFFFF; --fairway:#62BE8F;
+  --flag:#FFD23F; --leather:#C9611F; --soon:#8A958F;
+  --f-display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D1411; --surface:#16201B; --sunk:#101814; --ink:#E4EBE6; --muted:#93A39A; --line:#28362F;
+  --brand:#06402C; --accent:#62BE8F; --accent-ink:#0B1410; --soon:#6E7C74; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0D1411; --surface:#16201B; --sunk:#101814; --ink:#E4EBE6; --muted:#93A39A; --line:#28362F;
+  --brand:#06402C; --accent:#62BE8F; --accent-ink:#0B1410; --soon:#6E7C74; color-scheme:dark }
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--bg);color:var(--ink)}
+body{margin:0;font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--fairway);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+.hero{background:var(--brand);color:var(--brand-ink);padding:28px 16px 64px;text-align:center;position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;left:-10%;right:-10%;bottom:-60px;height:120px;background:var(--bg);border-radius:50% 50% 0 0}
+.hero img{width:132px;height:auto;filter:drop-shadow(0 6px 14px rgba(0,0,0,.35));position:relative;z-index:1}
+.hero p{margin:10px 0 0;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#BFD8CB;position:relative;z-index:1}
+.preview{position:absolute;top:10px;right:10px;z-index:2;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;background:var(--flag);color:#14201A;border-radius:999px;padding:3px 10px}
+
+main{max-width:560px;margin:-36px auto 0;padding:0 16px 40px;position:relative;z-index:1;display:flex;flex-direction:column;gap:22px}
+h2{font-family:var(--f-display);font-weight:800;font-size:22px;text-transform:uppercase;letter-spacing:.04em;margin:0;text-wrap:balance}
+h3{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:0}
+.sec{display:flex;flex-direction:column;gap:10px}
+.hint{font-size:13px;color:var(--muted);margin:0}
+
+/* Event cards: a stitched bag tag with a punched hole */
+.event{display:grid;grid-template-columns:56px 1fr auto;gap:14px;align-items:center;text-decoration:none;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 14px 14px 12px;position:relative;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.event::before{content:"";position:absolute;inset:5px;border:1.5px dashed var(--line);border-radius:12px;pointer-events:none}
+a.event:active{transform:scale(.99)}
+.event .ico{width:56px;height:56px;border-radius:14px;display:grid;place-items:center;background:var(--brand);position:relative}
+.event .ico img{width:56px;height:56px;border-radius:14px}
+.event .ico .yr{font-family:var(--f-display);font-weight:800;font-size:20px;color:var(--brand-ink)}
+.event .t{font-family:var(--f-display);font-weight:800;font-size:22px;line-height:1.05;text-transform:uppercase;letter-spacing:.02em}
+.event .m{font-size:13px;color:var(--muted);margin-top:3px}
+.chip{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:4px 9px;white-space:nowrap;justify-self:end}
+.chip.live{background:var(--fairway);color:#0B1410}
+.chip.soon{background:var(--sunk);color:var(--muted)}
+.event.off{opacity:.62}
+.event.off .ico{background:var(--soon)}
+.go{font-size:22px;color:var(--muted);margin-left:4px}
+
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{display:flex;flex-direction:column;gap:6px;text-decoration:none;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:left;cursor:pointer}
+.tile b{font-weight:600}
+.tile span{font-size:13px;color:var(--muted)}
+.tile svg{width:26px;height:26px;color:var(--accent)}
+
+/* New event screen */
+.bar{display:flex;align-items:center;gap:10px}
+.back{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 12px;font-weight:600;cursor:pointer}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+input,select{width:100%;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:10px;font-size:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.round-h{display:flex;justify-content:space-between;align-items:baseline}
+.round-h b{font-family:var(--f-display);font-weight:800;font-size:20px;text-transform:uppercase}
+.rules{border-radius:12px;background:var(--sunk);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.rules .sum{font-weight:600}
+.rules ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.rules .meta{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:12px;border-radius:999px;padding:3px 9px;background:var(--surface);border:1px solid var(--line)}
+.tag.whs{border-color:var(--accent);color:var(--accent);font-weight:600}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 14px;font-weight:600;cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:default}
+.lib{display:flex;flex-direction:column;gap:4px}
+.lib .g{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:8px}
+.lib .f{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+.lib .f span:last-child{color:var(--muted);font-size:12px;text-align:right}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <span class="preview">Preview</span>
+  <img src="../brand/logo.png" alt="ShipStiffs">
+  <p>Golf trips · matches · side action</p>
+</header>
+
+<main id="home">
+  <section class="sec">
+    <h3>Your events</h3>
+    <a class="event" href="../" aria-label="Open Bandon 2026 Team Battle">
+      <div class="ico"><img src="../brand/icon-192.png" alt=""></div>
+      <div><div class="t">Bandon 2026<br>Team Battle</div><div class="m">Oct 16–18 · Bandon Dunes Resort · 8 golfers</div></div>
+      <span class="chip live">Next up</span>
+    </a>
+    <div class="event off" aria-disabled="true">
+      <div class="ico"><span class="yr">JM</span></div>
+      <div><div class="t">Joe's Matches</div><div class="m">Ongoing matches and money games</div></div>
+      <span class="chip soon">Coming soon</span>
+    </div>
+    <div class="event off" aria-disabled="true">
+      <div class="ico"><span class="yr">'27</span></div>
+      <div><div class="t">The Battle 2027</div><div class="m">Dates and destination TBD</div></div>
+      <span class="chip soon">Coming soon</span>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h3>Tools</h3>
+    <div class="tiles">
+      <a class="tile" href="../map/">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+        <b>Yardage map</b><span>GPS distances on any hole</span>
+      </a>
+      <button class="tile" id="newbtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        <b>New event</b><span>Pick formats, add rounds</span>
+      </button>
+    </div>
+  </section>
+</main>
+
+<main id="create" hidden>
+  <div class="bar"><button class="back" id="backbtn">← Events</button><h2>New event</h2></div>
+  <p class="hint">Preview of event setup. Nothing here is saved yet.</p>
+
+  <section class="card">
+    <div class="field"><label for="ename">Event name</label><input id="ename" type="text" value="The Battle 2027"></div>
+    <div class="grid2">
+      <div class="field"><label for="edates">Dates</label><input id="edates" type="text" placeholder="Oct 2027"></div>
+      <div class="field"><label for="egolfers">Golfers</label><select id="egolfers">
+        <option>4</option><option>8</option><option selected>12</option><option>16</option></select></div>
+    </div>
+    <div class="field"><label for="eteams">Teams</label><select id="eteams">
+      <option>2 teams (Ryder Cup style)</option><option>4 teams</option><option>No teams (individual)</option></select></div>
+  </section>
+
+  <section class="sec" id="rounds"></section>
+  <button class="btn" id="addround">+ Add a round</button>
+  <button class="btn primary" disabled>Create event (coming soon)</button>
+
+  <section class="sec">
+    <h3>Format library</h3>
+    <div class="card lib" id="lib"></div>
+    <p class="hint">"WHS" allowances follow the World Handicap System's recommendations. Others are common buddy-trip practice and can be changed per event.</p>
+  </section>
+</main>
+
+<script src="../lib/formats.js"></script>
+<script>
+const F=window.SS_FORMATS||[];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const groups=[...new Set(F.map(f=>f.group))];
+const options=sel=>groups.map(g=>`<optgroup label="${esc(g)}">${F.filter(f=>f.group===g).map(f=>`<option value="${f.id}" ${f.id===sel?"selected":""}>${esc(f.name)}</option>`).join("")}</optgroup>`).join("");
+function rulesCard(id){
+  const f=F.find(x=>x.id===id);if(!f)return"";
+  return`<div class="rules"><div class="sum">${esc(f.summary)}</div><ol>${f.rules.map(r=>`<li>${esc(r)}</li>`).join("")}</ol>
+    <div class="meta"><span class="tag">${esc(f.group)}</span><span class="tag ${f.source==="WHS"?"whs":""}">Handicap: ${esc(f.allowance)}${f.source==="WHS"?" · WHS":""}</span></div></div>`;
+}
+const rounds=[{course:"",fmt:"fourball_mp"},{course:"",fmt:"scramble_4"}];
+function drawRounds(){
+  $("#rounds").innerHTML=rounds.map((r,i)=>`<div class="card">
+    <div class="round-h"><b>Round ${i+1}</b>${rounds.length>1?`<button class="back" data-del="${i}" aria-label="Remove round ${i+1}">Remove</button>`:""}</div>
+    <div class="field"><label for="rc${i}">Course</label><input id="rc${i}" type="text" placeholder="Course name" value="${esc(r.course)}" data-course="${i}"></div>
+    <div class="field"><label for="rf${i}">Format</label><select id="rf${i}" data-fmt="${i}">${options(r.fmt)}</select></div>
+    ${rulesCard(r.fmt)}
+  </div>`).join("");
+}
+$("#rounds").addEventListener("change",e=>{const i=e.target.dataset.fmt;if(i!=null){rounds[i].fmt=e.target.value;drawRounds()}});
+$("#rounds").addEventListener("input",e=>{const i=e.target.dataset.course;if(i!=null)rounds[i].course=e.target.value});
+$("#rounds").addEventListener("click",e=>{const i=e.target.dataset.del;if(i!=null){rounds.splice(+i,1);drawRounds()}});
+$("#addround").onclick=()=>{rounds.push({course:"",fmt:"stableford"});drawRounds()};
+$("#lib").innerHTML=groups.map(g=>`<div class="g">${esc(g)}</div>`+F.filter(f=>f.group===g).map(f=>`<div class="f"><span>${esc(f.name)}</span><span>${esc(f.allowance)}</span></div>`).join("")).join("");
+function show(view){$("#home").hidden=view==="create";$("#create").hidden=view!=="create";$(".hero").hidden=view==="create";window.scrollTo(0,0)}
+$("#newbtn").onclick=()=>{location.hash="new"};
+$("#backbtn").onclick=()=>{location.hash=""};
+window.addEventListener("hashchange",()=>show(location.hash==="#new"?"create":"home"));
+drawRounds();show(location.hash==="#new"?"create":"home");
+</script>
+</body>
+</html>
