@@ -72,7 +72,8 @@ a.event:active{transform:scale(.99)}
 .tile svg{width:28px;height:28px;color:var(--accent)}
 
 /* New event screen */
-.bar{display:flex;align-items:center;gap:10px}
+#create{margin-top:0;padding-top:calc(12px + env(safe-area-inset-top,0px))}
+.bar{display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;background:var(--bg);padding:10px 0;margin-top:-10px}
 .back{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 12px;font-weight:600;cursor:pointer}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px}
 .field{display:flex;flex-direction:column;gap:4px;min-width:0}
@@ -212,7 +213,7 @@ $("#addround").onclick=()=>{rounds.push({course:"",fmt:"stableford"});drawRounds
 $("#lib").innerHTML=groups.map(g=>`<div class="g">${esc(g)}</div>`+F.filter(f=>f.group===g).map(f=>`<div class="f"><span>${esc(f.name)}</span><span>${esc(f.allowance)}</span></div>`).join("")).join("");
 function show(view){$("#home").hidden=view==="create";$("#create").hidden=view!=="create";$(".hero").hidden=view==="create";window.scrollTo(0,0)}
 $("#newbtn").onclick=()=>{location.hash="new"};
-$("#backbtn").onclick=()=>{location.hash=""};
+$("#backbtn").onclick=()=>{history.replaceState(null,"",location.pathname);show("home")};
 window.addEventListener("hashchange",()=>show(location.hash==="#new"?"create":"home"));
 drawRounds();show(location.hash==="#new"?"create":"home");
 /* "Add to Home Screen" nudge: only in a normal browser tab, until dismissed */
