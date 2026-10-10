@@ -8,6 +8,28 @@ This repo is public, so never put PINs, API keys, or player names and handicaps 
 
 This file lives on **`main`**, in the repo `jpayne427/golf-yardage`. Always read and write it there.
 
+## 2026-10-10 16:23 UTC — cloud
+
+**Status:** the PC green review is merged into `greens.json`.
+
+**Done since last entry**
+- Merged the PC session's 12 corrected greens with `src: "eye"`, keeping the existing tee points.
+  - Before merging, checked each middle's move against the PC's notes. All match: Dunes 10
+    moved 38 yd, Pacific 3 42 yd, Trails 10 34 yd, Dunes 15 10 yd, RedTail 2 9 yd, RedTail 5
+    9 yd, RedTail 4 6 yd, and the rest 2–4 yd.
+  - Every front is nearer the tee than its back.
+- Ticked off those 12, plus the 4 the PC checked and left unchanged (RedTail 14, Old Mac 11,
+  Old Mac 12, Pacific 6).
+- Pacific 12 is now the only green with no front/back.
+
+**Questions / blockers for PC or Joe**
+- 4 greens remain on the review list for Joe: Pacific 12, Old Mac 10, Dunes 6, RedTail 17.
+- Tee points that are off are on the after-Bandon backlog. They only affect which way the map
+  rotates, not the yardages from GPS.
+
+**Needs from PC**
+- Nothing right now.
+
 ## 2026-10-10 16:09 UTC — cloud
 
 **Status:** answers to the PC session's setup questions.
@@ -65,6 +87,7 @@ This file lives on **`main`**, in the repo `jpayne427/golf-yardage`. Always read
   - Map for any course, with green marks shared through the database
   - Freeze `bandon-2026`
   - Possibly a private repo (GitHub Pro or Cloudflare Pages)
+  - Fix tee (T) points that are off, e.g. Pacific 3 (562 yd tee to middle), Dunes 15 (206 vs a ~163 card) and Dunes 6. Per the PC review.
 
 ## Before sending the Bandon link (Joe, deferred)
 
@@ -80,28 +103,28 @@ Joe is reviewing these today on https://shipstiffs.com/map/. To fix one, use Mar
 and ticks the box.
 
 **No front/back yet (mark these):**
-- [ ] Bandon Dunes 10
-- [ ] Pacific 3
-- [ ] Pacific 12
-- [ ] Trails 10
-- [ ] RedTail 2
-- [ ] RedTail 10
-- [ ] RedTail 13
-- [ ] RedTail 15
+- [x] Bandon Dunes 10
+- [x] Pacific 3
+- [ ] Pacific 12: no green edge visible in any imagery; Joe on site
+- [x] Trails 10
+- [x] RedTail 2
+- [x] RedTail 10
+- [x] RedTail 13
+- [x] RedTail 15
 
 **Marked by eye, least certain (check these):**
-- [ ] Old Mac 10
-- [ ] Old Mac 11
-- [ ] Old Mac 12
-- [ ] Bandon Dunes 6
-- [ ] Bandon Dunes 15
-- [ ] Pacific 6
-- [ ] Pacific 11
-- [ ] RedTail 4
-- [ ] RedTail 5
-- [ ] RedTail 9
-- [ ] RedTail 14
-- [ ] RedTail 17
+- [ ] Old Mac 10: huge green with no clear edges; the current marks are plausible
+- [x] Old Mac 11
+- [x] Old Mac 12
+- [ ] Bandon Dunes 6: no clear edge, and the tee is 310 yd from the middle on a par 3, so the tee or green point is off
+- [x] Bandon Dunes 15
+- [x] Pacific 6
+- [x] Pacific 11
+- [x] RedTail 4
+- [x] RedTail 5
+- [x] RedTail 9
+- [x] RedTail 14
+- [ ] RedTail 17: in heavy shade; the green may be about 4 yd right and 5 yd short. Check on site Sunday
 
 ---
 
