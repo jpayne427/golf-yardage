@@ -88,7 +88,10 @@ Deno.serve(async (req) => {
   if (!images.length || images.length > 4) return json({ error: "Send 1 to 4 photos." }, 400);
   if (images.some((i) => i.data.length > 7_000_000)) return json({ error: "A photo is too large." }, 413);
 
-  const client = new Anthropic(); // reads ANTHROPIC_API_KEY
+  // Reads ANTHROPIC_API_KEY. A key that isn't scoped to a workspace also needs
+  // ANTHROPIC_WORKSPACE_ID (Console > Settings > Workspaces) so requests name their workspace.
+  const workspace = Deno.env.get("ANTHROPIC_WORKSPACE_ID");
+  const client = new Anthropic(workspace ? { defaultHeaders: { "anthropic-workspace-id": workspace } } : {});
   const content = [
     ...images.map((i) => ({
       type: "image" as const,
@@ -128,7 +131,12 @@ Deno.serve(async (req) => {
       const card = JSON.parse(a.schema ? text : text.slice(start, end + 1));
       return json({ card, model: response.model, usage: response.usage, attempt: a.label, earlier_errors: errors });
     } catch (err) {
-      if (err instanceof Anthropic.BadRequestError) { errors.push(`${a.label}: ${err.message}`); console.error(a.label, err.message); continue; }
+      if (err instanceof Anthropic.BadRequestError) {
+        if (/workspace/i.test(err.message)) {
+          return json({ error: "The Anthropic API key isn't tied to a workspace. Use a key created inside a workspace, or add the ANTHROPIC_WORKSPACE_ID secret." }, 500);
+        }
+        errors.push(`${a.label}: ${err.message}`); console.error(a.label, err.message); continue;
+      }
       if (err instanceof Anthropic.AuthenticationError) return json({ error: "The Anthropic API key is missing or wrong." }, 500);
       if (err instanceof Anthropic.PermissionDeniedError) return json({ error: `The API key isn't allowed to do this: ${err.message}` }, 500);
       if (err instanceof Anthropic.RateLimitError) return json({ error: "Busy right now. Try again in a minute." }, 429);
