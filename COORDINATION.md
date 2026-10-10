@@ -6,6 +6,31 @@ entries headed `— pc`. Newest entries go at the top. Pull before editing.
 
 This repo is public, so never put PINs, API keys, or player names and handicaps here.
 
+## After-Bandon backlog (Joe's requests)
+
+- [ ] **Custom event icon.** Anyone with the event PIN can upload an icon, and the home page
+      shows it. Notes:
+  - Resize it in the browser to about 256 px first.
+  - Store it with a PIN check: a Supabase Storage bucket written through an edge function, or
+    a small data URL in `docs`.
+  - The home page currently hard-codes its event cards. It needs to list events from the database.
+- [ ] **Private events and 2-tier PINs.** A view PIN lets someone see the event, and an edit PIN
+      (the current event PIN) lets them keep score. Notes:
+  - Today anyone can read `docs`. A private event's rows need to stop being publicly readable
+    and be read through a PIN-checked RPC instead, e.g. `read_docs(p_pin, p_event)`.
+  - Live updates (Supabase realtime) can't check a PIN. For private events, either poll every
+    few seconds or give each phone a short-lived signed token after it enters the PIN.
+  - The view PIN is stored as `pin_view:<event>`, next to the edit PIN.
+  - The scanner and the map stay edit-PIN only.
+- [ ] Earlier items:
+  - Per-player tees
+  - Real multi-event flow (Joe's Matches, Battle 2027)
+  - Scoring for scramble and shamble formats
+  - Course library
+  - Map for any course, with green marks shared through the database
+  - Freeze `bandon-2026`
+  - Possibly a private repo (GitHub Pro or Cloudflare Pages)
+
 ## Before sending the Bandon link (Joe, deferred)
 
 - [ ] Clear the Bandon test data: the `cards` rows and the stray "New player" row. Run the
