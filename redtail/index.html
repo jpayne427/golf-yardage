@@ -612,11 +612,11 @@ function renderSetup(){
     <div class="grid2"><div class="field"><label for="sk-low">Strokes</label><select id="sk-low" data-set="skins:offLow" ${dis}><option value="0" ${!sk.offLow?"selected":""}>Full strokes</option><option value="1" ${sk.offLow?"selected":""}>Off the low player</option></select></div>
     <div class="field"><label for="sk-carry">Ties</label><select id="sk-carry" data-set="skins:carry" ${dis}><option value="1" ${sk.carry?"selected":""}>Carry over</option><option value="0" ${!sk.carry?"selected":""}>No skin, no carry</option></select></div></div>
     <p class="hint">Everyone playing the round is in. Lowest net score on a hole wins it outright; picked-up holes can't win.</p></div></section>`;
-  h+=`<section class="sec"><h2>Trip PIN</h2><div class="card">
-    <p class="hint" style="margin:0">Change the PIN everyone uses to keep score. Needs the organizer PIN. Other phones will be asked for the new PIN the next time they save something.</p>
+  h+=`<section class="sec"><h2>Event PIN</h2><div class="card">
+    <p class="hint" style="margin:0">Change the PIN everyone uses to keep score in ${esc(S.setup?.name||"this event")}. Other events keep their own PINs. Needs the organizer PIN, which also unlocks every event. Other phones will be asked for the new PIN the next time they save something.</p>
     <div class="grid2"><div class="field"><label for="pin-admin">Organizer PIN</label><input id="pin-admin" type="password" autocomplete="off"></div>
-    <div class="field"><label for="pin-new">New trip PIN</label><input id="pin-new" type="text" autocomplete="off" autocapitalize="off"></div></div>
-    <button class="btn" data-act="changepin">Change trip PIN</button></div></section>`;
+    <div class="field"><label for="pin-new">New event PIN</label><input id="pin-new" type="text" autocomplete="off" autocapitalize="off"></div></div>
+    <button class="btn" data-act="changepin">Change event PIN</button></div></section>`;
   h+=`<section class="sec"><h2>Handicap allowances</h2><div class="card">`;
   for(const k of Object.keys(FORMATS)){
     h+=`<div class="plrow" style="grid-template-columns:minmax(0,1fr) 80px"><div><div style="font-weight:600">${FORMATS[k].label}</div><div class="hint">${ALLOW_NOTE[k]}</div></div><input id="al-${k}" type="number" inputmode="numeric" aria-label="${FORMATS[k].label} allowance percent" value="${esc(S.setup?.allowances?.[k]??DEFAULT_ALLOW[k])}" data-set="allow:${k}" ${dis}></div>`;
@@ -783,7 +783,7 @@ document.addEventListener("focusout",()=>setTimeout(()=>{if(S.dirty)render()},0)
 let toastT;
 function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3200)}
 function writeFailed(e){
-  if(e&&e.code==="wrong_pin"){S.readOnly=true;ls.set("pin","");render();toast("The trip PIN changed. Enter the new one to keep scoring.");openPin();return}
+  if(e&&e.code==="wrong_pin"){S.readOnly=true;ls.set(navKey("pin"),"");render();toast("The PIN changed. Enter the new one to keep scoring.");openPin();return}
   if(e&&e.code==="quota_exceeded"){toast("Storage is full, so that change wasn't saved.");return}
   toast("That change didn't save. Check your connection and try again.");
 }
@@ -1087,11 +1087,11 @@ $("#scanbox").addEventListener("click",e=>{
 });
 async function changePin(){
   const admin=$("#pin-admin").value.trim(),pin=$("#pin-new").value.trim();
-  if(!admin||!pin){toast("Enter the organizer PIN and the new trip PIN.");return}
-  const {data,error}=await S.sb.rpc("change_pin",{p_admin:admin,p_new:pin});
-  const msg={ok:"Trip PIN changed. This phone is unlocked with the new one.",wrong_admin:"That organizer PIN isn't right.",too_short:"Use at least 4 characters for the trip PIN.",not_set_up:"PIN changes aren't switched on yet (run change-pin.sql in Supabase)."};
+  if(!admin||!pin){toast("Enter the organizer PIN and the new event PIN.");return}
+  const {data,error}=await S.sb.rpc("change_pin",{p_admin:admin,p_new:pin,p_event:EVENT});
+  const msg={ok:"PIN changed for this event only. This phone is unlocked with the new one.",wrong_admin:"That organizer PIN isn't right.",too_short:"Use at least 4 characters for the PIN.",not_set_up:"Event PINs aren't switched on yet (run event-pins.sql in Supabase)."};
   if(error){toast(/change_pin/.test(error.message||"")?msg.not_set_up:"Couldn't change the PIN. Check your connection.");return}
-  if(data==="ok"){S.pin=pin;ls.set("pin",pin);S.readOnly=false;$("#pin-admin").value="";$("#pin-new").value="";render()}
+  if(data==="ok"){S.pin=pin;ls.set(navKey("pin"),pin);S.readOnly=false;$("#pin-admin").value="";$("#pin-new").value="";render()}
   toast(msg[data]||"Couldn't change the PIN.");
 }
 function openPin(){$("#pinmsg").textContent="";$("#pin").value="";$("#pinbox").hidden=false;setTimeout(()=>$("#pin").focus(),50)}
@@ -1099,10 +1099,11 @@ $("#pincancel").onclick=()=>{$("#pinbox").hidden=true};
 $("#pinform").addEventListener("submit",async e=>{
   e.preventDefault();const pin=$("#pin").value.trim();if(!pin)return;
   $("#pinmsg").textContent="Checking…";
-  const {data,error}=await S.sb.rpc("check_pin",{p_pin:pin});
+  let {data,error}=await S.sb.rpc("check_pin",{p_pin:pin,p_event:EVENT});
+  if(error&&/check_pin/.test(error.message||""))({data,error}=await S.sb.rpc("check_pin",{p_pin:pin}));  // before event-pins.sql is run
   if(error){$("#pinmsg").textContent="Couldn't check the PIN. Check your connection and try again.";return}
   if(!data){$("#pinmsg").textContent="That PIN isn't right.";return}
-  S.pin=pin;ls.set("pin",pin);S.readOnly=false;$("#pinbox").hidden=true;setSync("Live");render();toast("Unlocked. You can keep score on this phone.");
+  S.pin=pin;ls.set(navKey("pin"),pin);S.readOnly=false;$("#pinbox").hidden=true;setSync("Live");render();toast("Unlocked. You can keep score on this phone.");
 });
 async function boot(){
   S.tab=ls.get(navKey("tab"))||"board";S.scoreRound=ls.get(navKey("sround"));S.scoreGroup=ls.get(navKey("sgroup"));
@@ -1111,7 +1112,7 @@ async function boot(){
   if(!window.supabase||!cfg.url||!cfg.anonKey){S.err="The scoreboard isn't connected to its database yet.";setSync("Offline",true);render();return}
   S.sb=supabase.createClient(cfg.url,cfg.anonKey);
   const db=makeStore(S.sb);S.db=db;
-  S.pin=ls.get("pin")||"";S.readOnly=!S.pin;
+  S.pin=ls.get(navKey("pin"))||"";S.readOnly=!S.pin;
   const mark=k=>{if(!S["_"+k]){S["_"+k]=1;S.loaded++}};
   db.doc("setup/main").onSnapshot(s=>{S.setup=s.exists?s.data():null;mark("setup");render()});
   const coll=(name,key)=>db.collection(name).onSnapshot(q=>{const o={};q.docs.forEach(d=>{o[d.id]={...d.data(),id:d.id}});S[key]=o;mark(key);render()});
