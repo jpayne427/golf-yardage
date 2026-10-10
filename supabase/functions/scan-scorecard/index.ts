@@ -75,23 +75,18 @@ async function pinOk(pin: string): Promise<boolean> {
   return r.ok && (await r.json()) === true;
 }
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
-  if (req.method !== "POST") return json({ error: "Use POST." }, 405);
+// $ per million tokens (input, output) for the cost readout.
+const PRICES: Record<string, [number, number]> = {
+  "claude-opus-5-5": [4, 20],
+  "claude-sonnet-5-5": [2, 10],
+};
+type Img = { media_type: string; data: string };
+type ScanOk = { ok: true; card: unknown; model: string; ms: number; usage: unknown; cost: number | null; attempt: string; earlier_errors: string[] };
+type ScanErr = { ok: false; status: number; error: string; details?: string[] };
 
-  let body: { pin?: string; images?: { media_type: string; data: string }[] };
-  try { body = await req.json(); } catch { return json({ error: "Send JSON." }, 400); }
-
-  if (!body.pin || !(await pinOk(body.pin))) return json({ error: "wrong_pin" }, 403);
-  const images = (body.images ?? []).filter((i) =>
-    ["image/jpeg", "image/png", "image/webp"].includes(i.media_type) && typeof i.data === "string");
-  if (!images.length || images.length > 4) return json({ error: "Send 1 to 4 photos." }, 400);
-  if (images.some((i) => i.data.length > 7_000_000)) return json({ error: "A photo is too large." }, 413);
-
-  // Reads ANTHROPIC_API_KEY. A key that isn't scoped to a workspace also needs
-  // ANTHROPIC_WORKSPACE_ID (Console > Settings > Workspaces) so requests name their workspace.
-  const workspace = Deno.env.get("ANTHROPIC_WORKSPACE_ID");
-  const client = new Anthropic(workspace ? { defaultHeaders: { "anthropic-workspace-id": workspace } } : {});
+// Read the card with one model. Tries the full request, then simpler ones if the API rejects an option.
+async function scanWith(client: Anthropic, model: string, images: Img[]): Promise<ScanOk | ScanErr> {
+  const t0 = Date.now();
   const content = [
     ...images.map((i) => ({
       type: "image" as const,
@@ -99,8 +94,6 @@ Deno.serve(async (req) => {
     })),
     { type: "text" as const, text: PROMPT },
   ];
-  // Try the full request first; if the API rejects an option, retry with a simpler request
-  // and report the API's own message so problems can be diagnosed.
   const attempts = [
     { label: "full", fallbacks: true, schema: true },
     { label: "no-fallbacks", fallbacks: false, schema: true },
@@ -110,7 +103,7 @@ Deno.serve(async (req) => {
   for (const a of attempts) {
     try {
       const response = await client.beta.messages.create({
-        model: "claude-opus-5-5",
+        model,
         max_tokens: 16000,
         output_config: a.schema
           ? { effort: "medium", format: { type: "json_schema", schema: SCHEMA } }
@@ -124,26 +117,63 @@ Deno.serve(async (req) => {
           }],
         }],
       });
-      if (response.stop_reason === "refusal") return json({ error: "The card couldn't be read. Try another photo." }, 422);
-      if (response.stop_reason === "max_tokens") return json({ error: "The card was too long to read in one go." }, 422);
+      if (response.stop_reason === "refusal") return { ok: false, status: 422, error: "The card couldn't be read. Try another photo." };
+      if (response.stop_reason === "max_tokens") return { ok: false, status: 422, error: "The card was too long to read in one go." };
       const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
       const start = text.indexOf("{"), end = text.lastIndexOf("}");
       const card = JSON.parse(a.schema ? text : text.slice(start, end + 1));
-      return json({ card, model: response.model, usage: response.usage, attempt: a.label, earlier_errors: errors });
+      const p = PRICES[response.model] ?? PRICES[model];
+      const cost = p ? (response.usage.input_tokens * p[0] + response.usage.output_tokens * p[1]) / 1e6 : null;
+      return { ok: true, card, model: response.model, ms: Date.now() - t0, usage: response.usage, cost, attempt: a.label, earlier_errors: errors };
     } catch (err) {
       if (err instanceof Anthropic.BadRequestError) {
         if (/workspace/i.test(err.message)) {
-          return json({ error: "The Anthropic API key isn't tied to a workspace. Use a key created inside a workspace, or add the ANTHROPIC_WORKSPACE_ID secret." }, 500);
+          return { ok: false, status: 500, error: "The Anthropic API key isn't tied to a workspace. Use a key created inside a workspace, or add the ANTHROPIC_WORKSPACE_ID secret." };
         }
-        errors.push(`${a.label}: ${err.message}`); console.error(a.label, err.message); continue;
+        errors.push(`${a.label}: ${err.message}`); console.error(model, a.label, err.message); continue;
       }
-      if (err instanceof Anthropic.AuthenticationError) return json({ error: "The Anthropic API key is missing or wrong." }, 500);
-      if (err instanceof Anthropic.PermissionDeniedError) return json({ error: `The API key isn't allowed to do this: ${err.message}` }, 500);
-      if (err instanceof Anthropic.RateLimitError) return json({ error: "Busy right now. Try again in a minute." }, 429);
-      if (err instanceof Anthropic.APIError) return json({ error: `Scan service error (${err.status}): ${err.message}` }, 502);
+      if (err instanceof Anthropic.AuthenticationError) return { ok: false, status: 500, error: "The Anthropic API key is missing or wrong." };
+      if (err instanceof Anthropic.PermissionDeniedError) return { ok: false, status: 500, error: `The API key isn't allowed to do this: ${err.message}` };
+      if (err instanceof Anthropic.RateLimitError) return { ok: false, status: 429, error: "Busy right now. Try again in a minute." };
+      if (err instanceof Anthropic.APIError) return { ok: false, status: 502, error: `Scan service error (${err.status}): ${err.message}` };
       if (err instanceof SyntaxError) { errors.push(`${a.label}: reply wasn't valid JSON`); continue; }
-      return json({ error: `Something went wrong reading the card: ${String(err)}` }, 500);
+      return { ok: false, status: 500, error: `Something went wrong reading the card: ${String(err)}` };
     }
   }
-  return json({ error: "The scan service rejected the request.", details: errors }, 400);
+  return { ok: false, status: 400, error: "The scan service rejected the request.", details: errors };
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  if (req.method !== "POST") return json({ error: "Use POST." }, 405);
+
+  let body: { pin?: string; images?: Img[]; compare?: boolean };
+  try { body = await req.json(); } catch { return json({ error: "Send JSON." }, 400); }
+
+  if (!body.pin || !(await pinOk(body.pin))) return json({ error: "wrong_pin" }, 403);
+  const images = (body.images ?? []).filter((i) =>
+    ["image/jpeg", "image/png", "image/webp"].includes(i.media_type) && typeof i.data === "string");
+  if (!images.length || images.length > 4) return json({ error: "Send 1 to 4 photos." }, 400);
+  if (images.some((i) => i.data.length > 7_000_000)) return json({ error: "A photo is too large." }, 413);
+
+  // Reads ANTHROPIC_API_KEY. A key that isn't scoped to a workspace also needs
+  // ANTHROPIC_WORKSPACE_ID (Console > Settings > Workspaces) so requests name their workspace.
+  const workspace = Deno.env.get("ANTHROPIC_WORKSPACE_ID");
+  const client = new Anthropic(workspace ? { defaultHeaders: { "anthropic-workspace-id": workspace } } : {});
+
+  // compare: read the same photos with Opus and Sonnet at the same time.
+  const models = body.compare ? ["claude-opus-5-5", "claude-sonnet-5-5"] : ["claude-opus-5-5"];
+  const results = await Promise.all(models.map((m) => scanWith(client, m, images)));
+  const good = results.filter((r): r is ScanOk => r.ok);
+  if (!good.length) {
+    const r = results[0] as ScanErr;
+    return json({ error: r.error, details: r.details }, r.status);
+  }
+  const main = good[0];
+  return json({
+    card: main.card, model: main.model, ms: main.ms, cost: main.cost, usage: main.usage, attempt: main.attempt,
+    readings: results.map((r, i) => (r.ok
+      ? { model: r.model, ms: r.ms, cost: r.cost, card: r.card }
+      : { model: models[i], error: r.error })),
+  });
 });
