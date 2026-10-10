@@ -917,7 +917,7 @@ function drawTray(msg){
     <p class="hint" style="margin:0">${n} photo${n===1?"":"s"} ready. Add the other side of the card if it has one (up to 4 photos), then read the card.</p>
     ${msg?`<div class="banner">${msg}</div>`:""}
     <div class="thumbs">${SCAN.tray.map((i,k)=>`<div style="position:relative"><img src="${i.preview}" alt="Scorecard photo ${k+1}"><button class="btn" data-scan="drop" data-k="${k}" aria-label="Remove photo ${k+1}" style="position:absolute;top:4px;right:4px;padding:2px 8px">×</button></div>`).join("")}</div>
-    <label style="display:flex;gap:10px;align-items:center;font-size:14px"><input type="checkbox" id="scancompare" ${SCAN.compare?"checked":""} style="width:auto"> Compare Opus vs Sonnet (reads twice, about 1½× the cost)</label>
+    <label style="display:flex;gap:10px;align-items:center;font-size:14px"><input type="checkbox" id="scancompare" ${SCAN.compare?"checked":""} style="width:auto"> Double-check with Opus too (reads twice, about 4× the cost)</label>
     <div class="rowbtn"><button class="btn" data-scan="more" ${n>=4?"disabled":""}>Add another photo</button><button class="btn primary" data-scan="read" ${n?"":"disabled"}>Read the card</button></div>`);
 }
 $("#scanfile").addEventListener("change",async e=>{
@@ -951,9 +951,11 @@ const modelName=m=>/opus/.test(m||"")?"Opus":/sonnet/.test(m||"")?"Sonnet":(m||"
 function cardRows(card){const h={};(card?.holes||[]).forEach(x=>{if(x.hole>=1&&x.hole<=18)h[x.hole]=x});
   return{pars:Array.from({length:18},(_,i)=>h[i+1]?.par??null),si:Array.from({length:18},(_,i)=>h[i+1]?.si??null),tees:card?.tees||[]}}
 function useReading(i){
-  const r=SCAN.readings[i];SCAN.using=i;SCAN.card=r.card;SCAN.tee=0;
+  const r=SCAN.readings[i];SCAN.using=i;SCAN.card=r.card;
   const c=cardRows(r.card);SCAN.pars=c.pars;SCAN.si=c.si;
-  const t=c.tees[0]||{};SCAN.rating=t.rating??null;SCAN.slope=t.slope??null;drawReview();
+  const playing=(S.courses[S.scanCourse]?.tees||"").toLowerCase();
+  SCAN.tee=Math.max(0,c.tees.findIndex(t=>(t.name||"").toLowerCase()===playing));
+  const t=c.tees[SCAN.tee]||{};SCAN.rating=t.rating??null;SCAN.slope=t.slope??null;drawReview();
 }
 function readingDiffs(){ // where the two models disagree
   const ok=SCAN.readings.filter(r=>r.card);if(ok.length<2)return null;
@@ -989,7 +991,7 @@ function drawReview(){
     <div class="thumbs">${SCAN.imgs.map(i=>`<img src="${i.preview}" alt="Scorecard photo">`).join("")}</div>`;
   if(SCAN.readings&&SCAN.readings.length>1){
     const cmp=readingDiffs();
-    h+=`<section class="card"><h3>Opus vs Sonnet</h3><div class="tbl" style="border:0"><table><thead><tr><th>Model</th><th class="r">Time</th><th class="r">Cost</th><th></th></tr></thead><tbody>${SCAN.readings.map((r,i)=>`<tr>
+    h+=`<section class="card"><h3>Sonnet vs Opus</h3><div class="tbl" style="border:0"><table><thead><tr><th>Model</th><th class="r">Time</th><th class="r">Cost</th><th></th></tr></thead><tbody>${SCAN.readings.map((r,i)=>`<tr>
       <td><b>${esc(modelName(r.model))}</b>${r.error?`<div class="hint">${esc(r.error)}</div>`:""}</td>
       <td class="r num">${r.ms?(r.ms/1000).toFixed(1)+" s":"–"}</td><td class="r num">${r.cost!=null?(r.cost*100).toFixed(1)+"¢":"–"}</td>
       <td class="r">${r.card?(i===SCAN.using?`<span class="pill">Showing</span>`:`<button class="btn" data-scan="use" data-k="${i}" style="padding:6px 10px">Use this</button>`):""}</td></tr>`).join("")}</tbody></table></div>

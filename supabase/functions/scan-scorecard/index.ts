@@ -161,8 +161,9 @@ Deno.serve(async (req) => {
   const workspace = Deno.env.get("ANTHROPIC_WORKSPACE_ID");
   const client = new Anthropic(workspace ? { defaultHeaders: { "anthropic-workspace-id": workspace } } : {});
 
-  // compare: read the same photos with Opus and Sonnet at the same time.
-  const models = body.compare ? ["claude-opus-5-5", "claude-sonnet-5-5"] : ["claude-opus-5-5"];
+  // Sonnet reads the card (the head-to-head on Bandon Dunes matched Opus exactly, ~3x faster
+  // and ~3x cheaper). compare: also read the same photos with Opus, side by side.
+  const models = body.compare ? ["claude-sonnet-5-5", "claude-opus-5-5"] : ["claude-sonnet-5-5"];
   const results = await Promise.all(models.map((m) => scanWith(client, m, images)));
   const good = results.filter((r): r is ScanOk => r.ok);
   if (!good.length) {
