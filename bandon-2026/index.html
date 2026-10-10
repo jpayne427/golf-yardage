@@ -917,7 +917,6 @@ function drawTray(msg){
     <p class="hint" style="margin:0">${n} photo${n===1?"":"s"} ready. Add the other side of the card if it has one (up to 4 photos), then read the card.</p>
     ${msg?`<div class="banner">${msg}</div>`:""}
     <div class="thumbs">${SCAN.tray.map((i,k)=>`<div style="position:relative"><img src="${i.preview}" alt="Scorecard photo ${k+1}"><button class="btn" data-scan="drop" data-k="${k}" aria-label="Remove photo ${k+1}" style="position:absolute;top:4px;right:4px;padding:2px 8px">×</button></div>`).join("")}</div>
-    <label style="display:flex;gap:10px;align-items:center;font-size:14px"><input type="checkbox" id="scancompare" ${SCAN.compare?"checked":""} style="width:auto"> Double-check with Opus too (reads twice, about 4× the cost)</label>
     <div class="rowbtn"><button class="btn" data-scan="more" ${n>=4?"disabled":""}>Add another photo</button><button class="btn primary" data-scan="read" ${n?"":"disabled"}>Read the card</button></div>`);
 }
 $("#scanfile").addEventListener("change",async e=>{
@@ -933,13 +932,12 @@ async function readCard(){
   const cfg=window.BATTLE_CONFIG||{};
   try{
     const resp=await fetch(cfg.url+"/functions/v1/scan-scorecard",{method:"POST",headers:{"Content-Type":"application/json",apikey:cfg.anonKey,Authorization:"Bearer "+cfg.anonKey},
-      body:JSON.stringify({pin:S.pin,compare:!!SCAN.compare,images:imgs.map(({media_type,data})=>({media_type,data}))})});
+      body:JSON.stringify({pin:S.pin,images:imgs.map(({media_type,data})=>({media_type,data}))})});
     const out=await resp.json().catch(()=>({error:`The scan service didn't answer properly (HTTP ${resp.status}).`}));
     if(resp.status===403&&out.error==="wrong_pin"){closeScan();writeFailed({code:"wrong_pin"});return}
     if(!resp.ok||!out.card){const e=new Error(out.error||"The scan didn't work.");e.details=out.details;throw e}
     SCAN.imgs=imgs;SCAN.tray=[];SCAN.trayFor=null;
-    SCAN.readings=(out.readings&&out.readings.length?out.readings:[{model:out.model,ms:out.ms,cost:out.cost,card:out.card}]);
-    useReading(SCAN.readings.findIndex(r=>r.card));
+    loadCard(out.card);
   }catch(err){
     const det=(err.details||[]).map(d=>`<li>${esc(d)}</li>`).join("");
     scanView(`<h2>Scan failed</h2><p>${esc(err.message||"Check your connection and try again.")}</p>
@@ -947,26 +945,14 @@ async function readCard(){
       <div class="rowbtn"><button class="btn" data-scan="close">Close</button><button class="btn primary" data-scan="read">Try again</button></div>`);
   }
 }
-const modelName=m=>/opus/.test(m||"")?"Opus":/sonnet/.test(m||"")?"Sonnet":(m||"Model");
-function cardRows(card){const h={};(card?.holes||[]).forEach(x=>{if(x.hole>=1&&x.hole<=18)h[x.hole]=x});
-  return{pars:Array.from({length:18},(_,i)=>h[i+1]?.par??null),si:Array.from({length:18},(_,i)=>h[i+1]?.si??null),tees:card?.tees||[]}}
-function useReading(i){
-  const r=SCAN.readings[i];SCAN.using=i;SCAN.card=r.card;
-  const c=cardRows(r.card);SCAN.pars=c.pars;SCAN.si=c.si;
-  const playing=(S.courses[S.scanCourse]?.tees||"").toLowerCase();
-  SCAN.tee=Math.max(0,c.tees.findIndex(t=>(t.name||"").toLowerCase()===playing));
-  const t=c.tees[SCAN.tee]||{};SCAN.rating=t.rating??null;SCAN.slope=t.slope??null;drawReview();
-}
-function readingDiffs(){ // where the two models disagree
-  const ok=SCAN.readings.filter(r=>r.card);if(ok.length<2)return null;
-  const a=cardRows(ok[0].card),b=cardRows(ok[1].card),d=[];
-  for(let i=0;i<18;i++){if(a.pars[i]!==b.pars[i])d.push(`Hole ${i+1} par: ${a.pars[i]??"–"} vs ${b.pars[i]??"–"}`);
-    if(a.si[i]!==b.si[i])d.push(`Hole ${i+1} stroke index: ${a.si[i]??"–"} vs ${b.si[i]??"–"}`)}
-  const names=[...new Set([...a.tees,...b.tees].map(t=>(t.name||"").toLowerCase()))];
-  for(const n of names){const ta=a.tees.find(t=>(t.name||"").toLowerCase()===n),tb=b.tees.find(t=>(t.name||"").toLowerCase()===n);
-    if(!ta||!tb){d.push(`${(ta||tb).name} tees: only ${ta?modelName(ok[0].model):modelName(ok[1].model)} found them`);continue}
-    if(ta.rating!==tb.rating||ta.slope!==tb.slope)d.push(`${ta.name} rating/slope: ${ta.rating??"–"}/${ta.slope??"–"} vs ${tb.rating??"–"}/${tb.slope??"–"}`)}
-  return{d,names:[modelName(ok[0].model),modelName(ok[1].model)]};
+function loadCard(card){
+  const h={};(card?.holes||[]).forEach(x=>{if(x.hole>=1&&x.hole<=18)h[x.hole]=x});
+  const tees=card?.tees||[];SCAN.card=card;
+  SCAN.pars=Array.from({length:18},(_,i)=>h[i+1]?.par??null);
+  SCAN.si=Array.from({length:18},(_,i)=>h[i+1]?.si??null);
+  const playing=(S.courses[S.scanCourse]?.tees||"").toLowerCase();   // default to the tees this course already plays
+  SCAN.tee=Math.max(0,tees.findIndex(t=>(t.name||"").toLowerCase()===playing));
+  const t=tees[SCAN.tee]||{};SCAN.rating=t.rating??null;SCAN.slope=t.slope??null;drawReview();
 }
 function scanIssues(){
   const iss=[],pars=SCAN.pars,si=SCAN.si;
@@ -989,14 +975,6 @@ function drawReview(){
   let h=`<div class="rhead"><h2>Check the card</h2><button class="btn" data-scan="close" style="padding:8px 12px">Cancel</button></div>
     <p class="hint" style="margin:0">Read from ${SCAN.imgs.length} photo${SCAN.imgs.length>1?"s":""}${card.course_name?` of <b>${esc(card.course_name)}</b>`:""}. Fix anything highlighted, then save.</p>
     <div class="thumbs">${SCAN.imgs.map(i=>`<img src="${i.preview}" alt="Scorecard photo">`).join("")}</div>`;
-  if(SCAN.readings&&SCAN.readings.length>1){
-    const cmp=readingDiffs();
-    h+=`<section class="card"><h3>Sonnet vs Opus</h3><div class="tbl" style="border:0"><table><thead><tr><th>Model</th><th class="r">Time</th><th class="r">Cost</th><th></th></tr></thead><tbody>${SCAN.readings.map((r,i)=>`<tr>
-      <td><b>${esc(modelName(r.model))}</b>${r.error?`<div class="hint">${esc(r.error)}</div>`:""}</td>
-      <td class="r num">${r.ms?(r.ms/1000).toFixed(1)+" s":"–"}</td><td class="r num">${r.cost!=null?(r.cost*100).toFixed(1)+"¢":"–"}</td>
-      <td class="r">${r.card?(i===SCAN.using?`<span class="pill">Showing</span>`:`<button class="btn" data-scan="use" data-k="${i}" style="padding:6px 10px">Use this</button>`):""}</td></tr>`).join("")}</tbody></table></div>
-      ${cmp?(cmp.d.length?`<p class="hint" style="margin:0"><b>${cmp.d.length} difference${cmp.d.length>1?"s":""}</b> (${esc(cmp.names[0])} vs ${esc(cmp.names[1])}):</p><ul class="hint" style="margin:0;padding-left:18px">${cmp.d.slice(0,12).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:`<p class="hint" style="margin:0"><b>Both read the card identically.</b></p>`):""}</section>`;
-  }
   h+=iss.length?`<div class="banner"><b>Check these:</b><ul class="issues">${iss.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:`<div class="banner" style="background:var(--t1-soft)">Everything adds up. Par ${tot}, stroke index 1–18 used once each.</div>`;
   h+=`<section class="card"><div class="field"><label for="scantee">Tees you're playing</label><select id="scantee">${tees.map((t,i)=>`<option value="${i}" ${i===SCAN.tee?"selected":""}>${esc(t.name)}${t.rating!=null||t.slope!=null?` · ${t.rating??"?"}/${t.slope??"?"}`:""}</option>`).join("")||"<option>No tees found</option>"}</select></div>
     <div class="grid2"><div class="field"><label for="scanrating">Rating</label><input id="scanrating" type="number" step="0.1" inputmode="decimal" value="${SCAN.rating??""}" class="${SCAN.rating==null?"bad":""}"></div>
@@ -1017,7 +995,6 @@ $("#scanbox").addEventListener("change",e=>{
   else if(t.id==="scantee"){SCAN.tee=+t.value;const tee=(SCAN.card.tees||[])[SCAN.tee]||{};SCAN.rating=tee.rating??null;SCAN.slope=tee.slope??null;drawReview()}
   else if(t.id==="scanrating"){SCAN.rating=num(t.value);drawReview()}
   else if(t.id==="scanslope"){SCAN.slope=num(t.value);drawReview()}
-  else if(t.id==="scancompare"){SCAN.compare=t.checked}
 });
 $("#scanbox").addEventListener("click",e=>{
   const a=e.target.closest("[data-scan]");if(!a)return;
@@ -1026,7 +1003,6 @@ $("#scanbox").addEventListener("click",e=>{
   else if(a.dataset.scan==="more"){$("#scanfile").value="";$("#scanfile").click()}
   else if(a.dataset.scan==="drop"){SCAN.tray.splice(+a.dataset.k,1);drawTray()}
   else if(a.dataset.scan==="read"){if(SCAN.tray.length)readCard()}
-  else if(a.dataset.scan==="use"){useReading(+a.dataset.k)}
   else if(a.dataset.scan==="save"){
     const cid=S.scanCourse,tee=(SCAN.card.tees||[])[SCAN.tee]||{};
     const teeSets=(SCAN.card.tees||[]).map((t,i)=>({name:t.name,rating:i===SCAN.tee?SCAN.rating:(t.rating??null),slope:i===SCAN.tee?SCAN.slope:(t.slope??null),par:t.par??null}));

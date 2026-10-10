@@ -75,11 +75,9 @@ async function pinOk(pin: string): Promise<boolean> {
   return r.ok && (await r.json()) === true;
 }
 
+const MODEL = "claude-sonnet-5-5";
 // $ per million tokens (input, output) for the cost readout.
-const PRICES: Record<string, [number, number]> = {
-  "claude-opus-5-5": [4, 20],
-  "claude-sonnet-5-5": [2, 10],
-};
+const PRICE: [number, number] = [2, 10];
 type Img = { media_type: string; data: string };
 type ScanOk = { ok: true; card: unknown; model: string; ms: number; usage: unknown; cost: number | null; attempt: string; earlier_errors: string[] };
 type ScanErr = { ok: false; status: number; error: string; details?: string[] };
@@ -122,8 +120,7 @@ async function scanWith(client: Anthropic, model: string, images: Img[]): Promis
       const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
       const start = text.indexOf("{"), end = text.lastIndexOf("}");
       const card = JSON.parse(a.schema ? text : text.slice(start, end + 1));
-      const p = PRICES[response.model] ?? PRICES[model];
-      const cost = p ? (response.usage.input_tokens * p[0] + response.usage.output_tokens * p[1]) / 1e6 : null;
+      const cost = (response.usage.input_tokens * PRICE[0] + response.usage.output_tokens * PRICE[1]) / 1e6;
       return { ok: true, card, model: response.model, ms: Date.now() - t0, usage: response.usage, cost, attempt: a.label, earlier_errors: errors };
     } catch (err) {
       if (err instanceof Anthropic.BadRequestError) {
@@ -147,7 +144,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "Use POST." }, 405);
 
-  let body: { pin?: string; images?: Img[]; compare?: boolean };
+  let body: { pin?: string; images?: Img[] };
   try { body = await req.json(); } catch { return json({ error: "Send JSON." }, 400); }
 
   if (!body.pin || !(await pinOk(body.pin))) return json({ error: "wrong_pin" }, 403);
@@ -161,20 +158,7 @@ Deno.serve(async (req) => {
   const workspace = Deno.env.get("ANTHROPIC_WORKSPACE_ID");
   const client = new Anthropic(workspace ? { defaultHeaders: { "anthropic-workspace-id": workspace } } : {});
 
-  // Sonnet reads the card (the head-to-head on Bandon Dunes matched Opus exactly, ~3x faster
-  // and ~3x cheaper). compare: also read the same photos with Opus, side by side.
-  const models = body.compare ? ["claude-sonnet-5-5", "claude-opus-5-5"] : ["claude-sonnet-5-5"];
-  const results = await Promise.all(models.map((m) => scanWith(client, m, images)));
-  const good = results.filter((r): r is ScanOk => r.ok);
-  if (!good.length) {
-    const r = results[0] as ScanErr;
-    return json({ error: r.error, details: r.details }, r.status);
-  }
-  const main = good[0];
-  return json({
-    card: main.card, model: main.model, ms: main.ms, cost: main.cost, usage: main.usage, attempt: main.attempt,
-    readings: results.map((r, i) => (r.ok
-      ? { model: r.model, ms: r.ms, cost: r.cost, card: r.card }
-      : { model: models[i], error: r.error })),
-  });
+  const r = await scanWith(client, MODEL, images);
+  if (!r.ok) return json({ error: r.error, details: r.details }, r.status);
+  return json({ card: r.card, model: r.model, ms: r.ms, cost: r.cost, usage: r.usage, attempt: r.attempt });
 });
