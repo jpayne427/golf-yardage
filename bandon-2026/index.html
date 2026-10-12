@@ -515,13 +515,14 @@ function renderScore(){
   // strokes per player on this hole, from the match that covers it
   const covering=G.matches.filter(m=>hh>=num(m.from)&&hh<=num(m.to));
   const results=covering.map(computeMatch);
-  const shots={};for(const res of results){for(const p of Object.keys(res.ph))if(shots[p]==null)shots[p]=shotsOn(res.ph[p],si)}
+  // a player in two matches on this hole (e.g. one player against two in a threesome) can get different strokes in each
+  const shots={};for(const res of results){for(const p of Object.keys(res.ph)){const opp=res.sides[res.sides[0].includes(p)?1:0];(shots[p]||(shots[p]=[])).push({n:shotsOn(res.ph[p],si),vs:opp})}}
   h+=`<div class="hole"><div class="hole-h"><div class="hn num"><small>Hole</small>${hh}</div><div class="hp"><span>Par<b class="num">${par??"–"}</b></span><span>SI<b class="num">${si??"–"}</b></span><a href="${esc(yardUrl())}#${esc(r.course)}-${hh}" target="_blank" rel="noopener" style="align-self:center;color:var(--accent);font-weight:600;text-decoration:none">Yards ↗</a></div></div>`;
   for(const p of players){
-    const v=cardVal(r.id,p,hh),team=G.t1.includes(p)?"t1":"t2",st=shots[p]||0;
+    const v=cardVal(r.id,p,hh),team=G.t1.includes(p)?"t1":"t2",sl=shots[p]||[],split=new Set(sl.map(x=>x.n)).size>1,st=split?Math.max(...sl.map(x=>x.n)):(sl[0]?.n||0);
     const pend=S.pending[cardId(r.id,p)]&&Object.prototype.hasOwnProperty.call(S.pending[cardId(r.id,p)],hh);
     const dis=S.readOnly?"disabled":"";
-    h+=`<div class="prow"><span class="bar ${team}"></span><div><div class="pn">${esc(S.players[p].name)}</div><div class="ps">${st?`<span class="dots" aria-label="${st} stroke${st>1?"s":""}">${"●".repeat(st)}</span> gets ${st}`:"no stroke"}${v!=null&&v!=="x"&&par?` · ${v-st-par===0?"net par":(v-st-par>0?"net +"+(v-st-par):"net "+(v-st-par))}`:""}</div></div>
+    h+=`<div class="prow"><span class="bar ${team}"></span><div><div class="pn">${esc(S.players[p].name)}</div><div class="ps">${split?`<span class="dots" aria-hidden="true">${"●".repeat(st)}</span> gets ${sl.map(x=>`${x.n} vs ${x.vs.map(shortName).join("+")}`).join(" · ")}`:st?`<span class="dots" aria-label="${st} stroke${st>1?"s":""}">${"●".repeat(st)}</span> gets ${st}`:"no stroke"}${!split&&v!=null&&v!=="x"&&par?` · ${v-st-par===0?"net par":(v-st-par>0?"net +"+(v-st-par):"net "+(v-st-par))}`:""}</div></div>
       <div class="step">
         <button data-act="dec" data-p="${esc(p)}" ${dis} aria-label="One fewer">−</button>
         <button class="val ${v==null||v==="x"?"empty":""} ${pend?"u":""}" data-act="setpar" data-p="${esc(p)}" ${dis} aria-label="Score">${v==null?(par?"par":"—"):v==="x"?"PU":v}</button>
