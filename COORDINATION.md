@@ -63,6 +63,72 @@ This file lives on **`main`**, in the repo `jpayne427/golf-yardage`. Always read
      to copy it to `redtail/`. Log what you pushed in a `— pc` entry. Before the Bandon trip
      (Oct 16–18) Joe wants only small, safe fixes.
 
+## 2026-10-12 19:38 UTC — cloud
+
+**Status:** reviewed the PC's 7-player contingency notes against the code. The format works
+without code changes.
+
+**Code check: one B player in two singles matches in the same round**
+- **Scores:** one card per player per round (`cardId = round__pid`). B3 enters each hole
+  once, and both singles matches read that same card.
+- **Scores tab:** `groupsFor()` merges matches by their `group` value and lists each player
+  once. Give all 4 threesome matches the same group (e.g. "Threesome") and B3 shows up once.
+- **Strokes:** each match works out strokes on its own (`computeMatch`, singles off the low
+  player), so B3's strokes against A3 and against A4 are each correct.
+- **Match sheet:** the player pickers list everyone and don't block a player who's already
+  in another match.
+- **Board and records:** points add up per match, so each round offers 6. B3's
+  individual record counts both matches (two W/L/H entries), as it should.
+- **Skins:** the player list has no duplicates, so B3 is in once.
+- **Scanner:** unaffected; it's per course.
+- **One cosmetic issue:** on the Scores tab, the stroke dots and "net par" hint next to B3
+  come from whichever covering match is listed first. If B3 gets different strokes against A3
+  and A4, the dots show only one of them. Match results are still right. Showing
+  "gets 1 vs A3 · 0 vs A4" is a small, safe fix; it's not done, waiting on Joe.
+
+**Draft rotation (generic, 3 rounds; names are kept out of this public file)**
+- **Teams:** A has 4 players (A1–A4), B has 3 (B1–B3).
+
+| Round | Foursome (Four-Ball, F9 + B9) | Threesome (singles, F9 + B9) | B player doubling |
+|---|---|---|---|
+| 1 | A1+A2 v B1+B2 | A3 v B3, A4 v B3 | B3 |
+| 2 | A1+A3 v B1+B3 | A2 v B2, A4 v B2 | B2 |
+| 3 | A1+A4 v B2+B3 | A2 v B1, A3 v B1 | B1 |
+
+- Each A player plays the threesome twice, except A1, who is always in the foursome. Swap
+  A1's slot in round 3 if Joe wants that spread evenly too.
+- If there are more rounds, keep cycling the doubling player B3 → B2 → B1.
+
+**Matches tab setup per round (7 players)**
+- **Foursome:** 2 matches, Four-Ball MP, Front 9 and Back 9.
+- **Threesome:** 4 matches, Singles MP: A3 v B3 front and back, A4 v B3 front and back.
+- Each match is worth 1 point.
+- Unassign the missing player's team in Setup, or delete them.
+
+**Questions / blockers for PC or Joe**
+- Who's out and how many rounds? With those, the cloud can write the exact rotation, or set up
+  the matches if Joe asks.
+- Open ideas (1) and (2) are below in the contingency note. (3) Nassau stays after Bandon.
+
+**Needs from PC**
+- Nothing.
+
+## Contingency: Bandon with 7 players (Joe deciding)
+
+- **Format:** 4 v 3 teams.
+  - The foursome plays two Four-Ball matches (front and back, 2 pts).
+  - The threesome plays two simultaneous singles against one doubling B player (front and back,
+    4 pts).
+  - 6 points a round.
+  - The doubling B player rotates each round, so each B player doubles once over 3 rounds.
+- **Works today, with no code changes.** See the entry above.
+- **Open ideas:**
+  1. 2 v 1 best ball with extra strokes for the lone player. The PC offered to simulate the
+     handicap adjustment if Joe sends handicaps privately, not in this file.
+  2. "2 v 1 combined Stableford," where the lone player's points count double. Needs a small
+     scoring change to combined_sf. It's contained and fine before Bandon if Joe wants it.
+  3. Nassau (front, back, overall) is parked until after Bandon.
+
 ## After-Bandon backlog (Joe's requests)
 
 - [ ] **Custom event icon.** Anyone with the event PIN can upload an icon, and the home page
