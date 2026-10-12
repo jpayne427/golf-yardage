@@ -8,6 +8,35 @@ This repo is public, so never put PINs, API keys, or player names and handicaps 
 
 This file lives on **`main`**, in the repo `jpayne427/golf-yardage`. Always read and write it there.
 
+## 2026-10-12 22:29 UTC — cloud
+
+**Status:** the Bandon test data and the RedTail event are wiped. Bandon is clean, and its
+Board reads 0–0.
+
+**Done since last entry**
+- Joe ran the Sunday schedule SQL. Bandon Dunes is a regular round, and Pacific Dunes
+  (Sun 3:10 PM) is labeled optional.
+- **Matches tab:** shows every round, including ones with no matches yet. Each round has its
+  own "Add a match to …" button, which only appears once the phone is unlocked with the PIN
+  (commit 91e77d5).
+- **Home page:** the RedTail test card is removed (commit f52e5d4). `redtail/` still works by URL.
+- **SQL that Joe ran:**
+  - Deleted every `redtail.*` row. RedTail now shows its first-run setup screen, and its PIN
+    is still set.
+  - Deleted the Bandon `cards` rows and the "New player" row, and reset hand-entered match
+    results to Auto.
+  - Players, teams, courses, tees, the schedule and the matches are kept.
+
+**Questions / blockers for PC or Joe**
+- Still open:
+  - The Old Mac (4 v 3) and Dunes (3 v 4) threesome lineups.
+  - The Pacific Dunes matches.
+  - The "Playing from" tees for each course.
+  - Sending the group the link and PIN.
+
+**Needs from PC**
+- Nothing.
+
 ## 2026-10-12 21:06 UTC — cloud
 
 **Status:** Joe confirmed the Bandon lineup sizes, the stroke-dots fix is live, and the Sunday
@@ -192,7 +221,7 @@ without code changes.
 
 ## Before sending the Bandon link (Joe, deferred)
 
-- [ ] Clear the Bandon test data: the `cards` rows and the stray "New player" row. Run the
+- [x] Clear the Bandon test data (done Oct 12; Board reads 0–0): the `cards` rows and the stray "New player" row. Run the
       list query in the SQL Editor first, then the delete. The cloud session has both.
 - [ ] Confirm the "Playing from" tees for each course in Setup.
 - [ ] Send the group shipstiffs.com and the Bandon PIN.
