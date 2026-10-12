@@ -539,12 +539,11 @@ function renderScore(){
 function renderMatches(){
   let h="";
   for(const r of rounds()){
-    const ms=matchList().filter(m=>m.round===r.id);if(!ms.length)continue;
+    const ms=matchList().filter(m=>m.round===r.id);
     const pts=ms.filter(counts).reduce((a,m)=>a+(num(m.pts)??1),0);
-    h+=`<section class="sec"><div class="rhead"><h2>${esc(r.name)}</h2><span class="hint">${esc(r.day)} · ${fmtPts(pts)} pts</span></div><div class="mlist">${ms.map(m=>matchRow(m,computeMatch(m))).join("")}</div></section>`;
+    h+=`<section class="sec"><div class="rhead"><h2>${esc(r.name)}</h2><span class="hint">${esc(r.day)} · ${fmtPts(pts)} pts</span></div>${ms.length?`<div class="mlist">${ms.map(m=>matchRow(m,computeMatch(m))).join("")}</div>`:`<p class="hint">No matches yet.</p>`}${S.readOnly?"":`<button class="btn" data-act="addmatch" data-round="${esc(r.id)}" style="margin-top:8px">Add a match to ${esc(r.name)}</button>`}</section>`;
   }
-  if(!h)h=`<div class="empty">No matches yet.</div>`;
-  if(!S.readOnly)h+=`<button class="btn" data-act="addmatch">Add a match</button>`;
+  if(!h)h=`<div class="empty">No rounds yet.</div>`;
   return h;
 }
 
@@ -844,7 +843,7 @@ document.addEventListener("click",e=>{
     case"delmatch":{const id=b.dataset.id;S.confirm=null;S.openMatch=null;serial("matches/"+id,()=>S.db.doc("matches/"+id).delete());render();break}
     case"addplayer":{const id="p"+Date.now().toString(36);serial("players/"+id,()=>S.db.doc("players/"+id).set({name:"New player",index:null,team:""}));break}
     case"addmatch":{const n=Math.max(0,...matchList().map(m=>num(m.n)||0))+1;const id="m"+String(n).padStart(2,"0")+Date.now().toString(36).slice(-3);
-      const rs=rounds();const round=rs[rs.length-1]?.id||"";
+      const rs=rounds();const round=b.dataset.round||rs[rs.length-1]?.id||"";
       serial("matches/"+id,()=>S.db.doc("matches/"+id).set({n,round,from:1,to:18,group:"",label:"",format:"",pts:1,t1:[],t2:[],manual:null,note:""})).then(()=>{S.openMatch=id;render()});break}
   }
 });
