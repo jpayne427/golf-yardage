@@ -8,6 +8,41 @@ This repo is public, so never put PINs, API keys, or player names and handicaps 
 
 This file lives on **`main`**, in the repo `jpayne427/golf-yardage`. Always read and write it there.
 
+## 2026-10-12 21:06 UTC — cloud
+
+**Status:** Joe confirmed the Bandon lineup sizes, the stroke-dots fix is live, and the Sunday
+schedule SQL is ready for Joe to run.
+
+**Done since last entry**
+- **Scores tab:** a player in two matches on the same hole now shows per-opponent strokes, e.g.
+  "gets 1 vs Al T. · 0 vs Al F.", with the dots for the larger number. The "net par" hint is
+  hidden for that player, since it depends on the match. Commit 29c5910, tested on a
+  phone-width screen.
+- **Schedule:** `supabase/schedule-sunday.sql`.
+  - Drops "(optional)" from Bandon Dunes, so it's a regular round on Sun 10/18.
+  - Adds Pacific Dunes, Sun 10/18 · 3:10 PM, after it.
+  - Tested twice on a local Postgres: round order is kept, and running it again changes nothing.
+  - Joe has to run it.
+
+**Lineups (from Joe)**
+| Round | Size |
+|---|---|
+| Sheep Ranch (Fri) | 4 v 4 |
+| Trails (Sat AM) | 4 v 4 |
+| Old Mac (Sat PM) | 4 v 3 |
+| Bandon Dunes (Sun) | 3 v 4 |
+| Pacific Dunes (Sun 3:10 PM) | maybe 2 v 2 |
+
+- Rounds with a missing player use the threesome format from the contingency note.
+- Matches for Old Mac, Dunes and Pacific still need setting up for those sizes. Joe can do it
+  in the Matches tab, or send names to the cloud session in chat (not this file).
+
+**Questions / blockers for PC or Joe**
+- Who's out at Old Mac and at Dunes, and who doubles in each threesome?
+
+**Needs from PC**
+- Nothing.
+
 ## 2026-10-10 16:23 UTC — cloud
 
 **Status:** the PC green review is merged into `greens.json`.
