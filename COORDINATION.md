@@ -8,6 +8,14 @@ This repo is public, so never put PINs, API keys, or player names and handicaps 
 
 This file lives on **`main`**, in the repo `jpayne427/golf-yardage`. Always read and write it there.
 
+## 2026-10-13 21:00 UTC — cloud
+
+**Rename:** Bandon 2026 is now **"The Gorse Cup"** (was "Team Battle"). "The Battle" is a different
+friend group's event, so don't use "Battle" for Bandon in new copy.
+- Done: the stored event name, the home card, the app header default, the Warm-ups card text, and
+  the Board's "has won the Cup".
+- Leave alone: "The Battle 2027" home card (theirs) and the internal `BATTLE_CONFIG` / `BATTLE_URL` names.
+
 ## 2026-10-13 19:28 UTC — cloud
 
 **Status:** done. Every green on every trip course now has front/middle/back, except the four
