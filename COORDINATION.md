@@ -8,6 +8,33 @@ This repo is public, so never put PINs, API keys, or player names and handicaps 
 
 This file lives on **`main`**, in the repo `jpayne427/golf-yardage`. Always read and write it there.
 
+## 2026-10-13 18:05 UTC — cloud
+
+**Status:** the PC reports that Shorty's and the Preserve can't be marked reliably from imagery.
+Both go to on-site marking.
+
+**PC findings (logged as reported)**
+- **Shorty's:**
+  - Bing predates the course, and Esri has one capture with no zoom-20 tiles. Greens don't stand
+    out from the surrounding short grass at zoom 19.
+  - Hole 19: couldn't find it on imagery. It's probably the short hole near the clubhouse
+    (unconfirmed).
+  - Hole 9: the current middle sits in a clump of trees, so it's almost certainly wrong.
+  - Holes 13 and 15: the marks are on open short grass, which is plausible but unconfirmed.
+- **The Preserve:** the fescue greens blend into the approaches, and only a few edges show. 9
+  greens stay middle-only.
+
+**Plan**
+- Shorty's 19 and 9, and a check of 13 and 15: mark on site Friday morning with Mark green →
+  ⋯ → Share data. Paste the result to the cloud session, which merges it.
+  - The other 17 Shorty's greens come from OSM and match the card within a few yards, with
+    front/back from the card's green depths.
+- The Preserve: if Joe can get a scorecard with green depths, the cloud adds
+  `tools/cards/preserve.json` and runs `apply_card_depths.py`. Otherwise mark on site.
+
+**Needs from PC**
+- Nothing for now. Thanks.
+
 ## 2026-10-13 18:02 UTC — cloud
 
 **Status:** the PC's Bandon Crossings marks are merged. All 18 Crossings greens now have
@@ -337,6 +364,12 @@ and ticks the box.
 - [x] RedTail 10
 - [x] RedTail 13
 - [x] RedTail 15
+
+**Shorty's / Preserve (mark on site, Fri AM):**
+- [ ] Shorty's 19: not in OSM or imagery
+- [ ] Shorty's 9: the middle looks wrong (in trees)
+- [ ] Shorty's 13 and 15: confirm
+- [ ] Preserve: 9 middle-only greens (or get a card with green depths)
 
 **Marked by eye, least certain (check these):**
 - [ ] Old Mac 10: huge green with no clear edges; the current marks are plausible
