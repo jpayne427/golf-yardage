@@ -295,23 +295,27 @@ function shortName(pid){
   const clash=Object.entries(S.players).some(([id,q])=>id!==pid&&String(q.name||"").trim().split(/\s+/)[0]===first);
   return clash&&parts[1]?first+" "+parts[1][0]+".":first;
 }
-const holesOf=m=>{const a=[];for(let h=num(m.from)||1;h<=(num(m.to)||18);h++)a.push(h);return a};
-const holesLabel=m=>{const f=num(m.from),t=num(m.to);if(f===1&&t===9)return"Front 9";if(f===10&&t===18)return"Back 9";if(f===1&&t===18)return"18 holes";return`Holes ${f}–${t}`};
+// holes on a course: 18 unless the course says otherwise (Shorty's 19, the Preserve 13, a 9-hole course)
+const nHoles=c=>{const n=num(c?.holes);return n&&n>=1&&n<=36?n:18};
+const roundHoles=rid=>nHoles(S.courses[roundById(rid)?.course]);
+const chunks9=n=>{const o=[];for(let a=1;a<=n;a+=9)o.push([a,Math.min(n,a+8)]);return o};
+const holesOf=m=>{const n=roundHoles(m.round),a=[];for(let h=num(m.from)||1;h<=Math.min(num(m.to)||n,n);h++)a.push(h);return a};
+const holesLabel=m=>{const n=roundHoles(m.round),f=num(m.from)||1,t=num(m.to)||n;if(n===18&&f===1&&t===9)return"Front 9";if(n===18&&f===10&&t===18)return"Back 9";if(f===1&&t===n)return`${n} holes`;return`Holes ${f}–${t}`};
 const teeSetsOf=c=>Array.isArray(c?.teeSets)?c.teeSets:[];
 const fmtTee=t=>`${t.name||"Tees"}${t.rating!=null||t.slope!=null?` · ${t.rating??"?"}/${t.slope??"?"}`:""}`;
 function teeSelect(cid,id){
   const c=S.courses[cid]||{},ts=teeSetsOf(c),cur=ts.findIndex(t=>t.name===c.tees);
   return`<select id="${id}" data-set="teesel:${esc(cid)}" ${S.readOnly?"disabled":""} aria-label="Tees">${cur<0?`<option value="">Choose tees…</option>`:""}${ts.map((t,i)=>`<option value="${i}" ${i===cur?"selected":""}>${esc(fmtTee(t))}</option>`).join("")}</select>`;
 }
-const courseReady=c=>!!c&&Array.isArray(c.pars)&&Array.isArray(c.si)&&c.pars.length===18&&c.si.length===18&&c.pars.every(v=>num(v))&&c.si.every(v=>num(v));
+const courseReady=c=>!!c&&Array.isArray(c.pars)&&Array.isArray(c.si)&&c.pars.length===nHoles(c)&&c.si.length===nHoles(c)&&c.pars.every(v=>num(v))&&c.si.every(v=>num(v));
 function courseHcp(pid,c){
   if(c?.gross)return{v:0,est:false};   // e.g. Shorty's: no rating, played gross
   const idx=num(S.players[pid]?.index);if(idx==null)return{v:0,est:true,missing:true};
-  const sl=num(c?.slope),cr=num(c?.rating),par=num(c?.par);
-  if(sl&&cr!=null&&par)return{v:Math.round(idx*sl/113+(cr-par)),est:false};
-  return{v:Math.round(idx),est:true};
+  const sl=num(c?.slope),cr=num(c?.rating),par=num(c?.par),k=nHoles(c)/18;   // an index is per 18 holes
+  if(sl&&cr!=null&&par)return{v:Math.round(k===1?idx*sl/113+(cr-par):idx*k*sl/113+(cr-par)),est:false};
+  return{v:Math.round(idx*k),est:true};
 }
-const shotsOn=(n,si)=>(!n||n<=0||!si)?0:Math.floor(n/18)+(si<=n%18?1:0);
+const shotsOn=(n,si,N=18)=>(!n||n<=0||!si)?0:Math.floor(n/N)+(si<=n%N?1:0);
 const cardId=(round,pid)=>round+"__"+pid;
 function cardVal(round,pid,h){
   const id=cardId(round,pid),pend=S.pending[id];
@@ -346,7 +350,7 @@ function computeMatch(m){
     const par=num(c.pars[h-1]),si=num(c.si[h-1]);
     const row={h,par,si,p:{},side:[null,null],won:null,complete:true,counted:false,run:null};
     for(const p of all){
-      const g=cardVal(m.round,p,h),s=shotsOn(out.ph[p],si),cell={g,s,net:null,pts:null};
+      const g=cardVal(m.round,p,h),s=shotsOn(out.ph[p],si,nHoles(c)),cell={g,s,net:null,pts:null};
       if(g==null)row.complete=false;
       else if(g==="x"){cell.pts=0;if(f.kind==="sp"||f.kind==="card")cell.net=par+2}  // pick-up = net double bogey
       else{cell.net=g-s;cell.pts=Math.max(0,2+par-cell.net)}
@@ -484,7 +488,7 @@ function groupsFor(round){
   for(const m of matchList().filter(m=>m.round===round)){
     const key=m.group||"—";let G=g.find(x=>x.key===key);
     if(!G){G={key,matches:[],t1:[],t2:[],from:99,to:0};g.push(G)}
-    G.matches.push(m);G.from=Math.min(G.from,num(m.from)||1);G.to=Math.max(G.to,num(m.to)||18);
+    G.matches.push(m);G.from=Math.min(G.from,num(m.from)||1);G.to=Math.max(G.to,num(m.to)||roundHoles(m.round));
     (m.t1||[]).forEach(p=>{if(p&&S.players[p]&&!G.t1.includes(p))G.t1.push(p)});
     (m.t2||[]).forEach(p=>{if(p&&S.players[p]&&!G.t2.includes(p))G.t2.push(p)});
   }
@@ -517,7 +521,7 @@ function renderScore(){
   const covering=G.matches.filter(m=>hh>=num(m.from)&&hh<=num(m.to));
   const results=covering.map(computeMatch);
   // a player in two matches on this hole (e.g. one player against two in a threesome) can get different strokes in each
-  const shots={};for(const res of results){for(const p of Object.keys(res.ph)){const opp=res.sides[res.sides[0].includes(p)?1:0];(shots[p]||(shots[p]=[])).push({n:shotsOn(res.ph[p],si),vs:opp})}}
+  const shots={};for(const res of results){for(const p of Object.keys(res.ph)){const opp=res.sides[res.sides[0].includes(p)?1:0];(shots[p]||(shots[p]=[])).push({n:shotsOn(res.ph[p],si,nHoles(c)),vs:opp})}}
   h+=`<div class="hole"><div class="hole-h"><div class="hn num"><small>Hole</small>${hh}</div><div class="hp"><span>Par<b class="num">${par??"–"}</b></span><span>SI<b class="num">${si??"–"}</b></span><a href="${esc(yardUrl())}#${esc(r.course)}-${hh}" target="_blank" rel="noopener" style="align-self:center;color:var(--accent);font-weight:600;text-decoration:none">Yards ↗</a></div></div>`;
   for(const p of players){
     const v=cardVal(r.id,p,hh),team=G.t1.includes(p)?"t1":"t2",sl=shots[p]||[],split=new Set(sl.map(x=>x.n)).size>1,st=split?Math.max(...sl.map(x=>x.n)):(sl[0]?.n||0);
@@ -577,13 +581,17 @@ function renderSetup(){
     const cid=r.course,c=S.courses[cid]||{};const ready=courseReady(c);
     const parSum=(c.pars||[]).reduce((a,v)=>a+(num(v)||0),0);
     const siSet=new Set((c.si||[]).map(num).filter(Boolean));
-    const siBad=ready&&siSet.size!==18;
-    h+=`<details class="card" ${S.openCourse===cid?"open":""} data-course="${esc(cid)}"><summary><span>${esc(c.name||r.name)} <span class="hint">${esc(r.day)}</span></span><span class="pill ${ready&&num(c.slope)?"":"warn"}">${ready?(num(c.slope)?"Ready":"Needs rating/slope"):"Needs card"}</span></summary>
+    const N=nHoles(c),siBad=ready&&siSet.size!==N;
+    h+=`<details class="card" ${S.openCourse===cid?"open":""} data-course="${esc(cid)}"><summary><span>${esc(c.name||r.name)} <span class="hint">${esc(r.day)}</span></span><span class="pill ${ready&&(num(c.slope)||c.gross)?"":"warn"}">${ready?(c.gross?"Ready · gross":num(c.slope)?"Ready":"Needs rating/slope"):"Needs card"}</span></summary>
       ${S.readOnly?"":`<button class="btn scanbtn" data-act="scan" data-id="${esc(cid)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Scan scorecard</button>`}
       <div class="grid3">
         <div class="field"><label for="cr-${cid}">Rating${c.tees?` (${esc(c.tees)})`:""}</label><input id="cr-${cid}" type="number" step="0.1" inputmode="decimal" value="${esc(c.rating??"")}" data-set="course:${cid}:rating" ${dis}></div>
         <div class="field"><label for="cs-${cid}">Slope</label><input id="cs-${cid}" type="number" inputmode="numeric" value="${esc(c.slope??"")}" data-set="course:${cid}:slope" ${dis}></div>
         <div class="field"><label for="cp-${cid}">Par</label><input id="cp-${cid}" type="number" inputmode="numeric" value="${esc(c.par??"")}" data-set="course:${cid}:par" ${dis}></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="cn-${cid}">Holes</label><input id="cn-${cid}" type="number" inputmode="numeric" min="1" max="36" value="${N}" data-set="course:${cid}:holes" ${dis}></div>
+        <div class="field"><label for="cg-${cid}">Handicaps</label><select id="cg-${cid}" data-set="course:${cid}:gross" ${dis}><option value="0" ${c.gross?"":"selected"}>Net (use handicaps)</option><option value="1" ${c.gross?"selected":""}>Gross only</option></select></div>
       </div>
 `;
     const ts=teeSetsOf(c);
@@ -594,14 +602,14 @@ function renderSetup(){
         ${S.readOnly?"<span></span>":`<button class="x" data-act="deltee" data-id="${esc(cid)}:${i}" aria-label="Remove ${esc(t.name)}">×</button>`}</div>`).join(""):`<p class="hint" style="margin:0">None yet. Scan the card, or add each tee's rating and slope here.</p>`}
       ${S.readOnly?"":`<button class="btn" data-act="addtee" data-id="${esc(cid)}">Add tees</button>`}</div>`;
     if(ts.length)h+=`<div class="field"><label for="tsel-${cid}">Playing from</label>${teeSelect(cid,"tsel-"+cid)}</div>`;
-    for(const half of [[1,9],[10,18]]){
+    for(const half of chunks9(N)){
       h+=`<div class="holes-grid">`;
       for(let x=half[0];x<=half[1];x++)h+=`<span class="hl">${x}</span>`;
       for(let x=half[0];x<=half[1];x++)h+=`<input id="hp-${cid}-${x}" type="number" inputmode="numeric" aria-label="Hole ${x} par" value="${esc(c.pars?.[x-1]??"")}" data-set="course:${cid}:pars:${x}" ${dis}>`;
       for(let x=half[0];x<=half[1];x++)h+=`<input id="hs-${cid}-${x}" type="number" inputmode="numeric" aria-label="Hole ${x} stroke index" value="${esc(c.si?.[x-1]??"")}" data-set="course:${cid}:si:${x}" ${dis} style="background:var(--sunk)">`;
       h+=`</div>`;
     }
-    h+=`<p class="hint">Top row par, shaded row stroke index (SI). Card par total: ${parSum||"–"}${siBad?` · <b style="color:var(--warn)">SI should use 1–18 once each</b>`:""}${c.source?` · ${esc(c.source)}`:""}</p>`;
+    h+=`<p class="hint">Top row par, shaded row stroke index (SI). Card par total: ${parSum||"–"}${siBad?` · <b style="color:var(--warn)">SI should use 1–${N} once each</b>`:""}${c.source?` · ${esc(c.source)}`:""}</p>`;
     if(pl.length)h+=`<p class="hint">Course handicaps: ${pl.map(([id,p])=>{const ch=courseHcp(id,c);return`${esc(shortName(id))} ${ch.missing?"–":ch.v+(ch.est?"*":"")}`}).join(" · ")}</p>`;
     h+=`</details>`;
   }
@@ -642,11 +650,11 @@ function computeSkins(round){
   out.players.forEach(p=>{const ch=courseHcp(p,c);out.est=out.est||ch.est;out.ph[p]=Math.round(ch.v*(num(cfg.allow)??100)/100)});
   if(cfg.offLow){const low=Math.min(...out.players.map(p=>out.ph[p]));out.players.forEach(p=>out.ph[p]-=low)}
   let carry=0;
-  for(let h=1;h<=18;h++){
+  for(let h=1;h<=nHoles(c);h++){
     const par=num(c.pars[h-1]),si=num(c.si[h-1]);
     const row={h,par,si,state:"open",winner:null,net:null,gross:null,value:0,missing:0,tied:[]};
     const nets=[];
-    for(const p of out.players){const g=cardVal(round,p,h);if(g==null){row.missing++;continue}if(g!=="x")nets.push({p,g,net:g-shotsOn(out.ph[p],si)})}
+    for(const p of out.players){const g=cardVal(round,p,h);if(g==null){row.missing++;continue}if(g!=="x")nets.push({p,g,net:g-shotsOn(out.ph[p],si,nHoles(c))})}
     if(row.missing){row.carryIn=carry;out.holes.push(row);continue}
     out.done++;
     const best=nets.length?Math.min(...nets.map(x=>x.net)):null;
@@ -682,7 +690,7 @@ function renderGames(){
     else res=`<span class="pill">${x.missing} score${x.missing===1?"":"s"} to come</span>`;
     h+=`<div class="lv" style="border:0;border-bottom:1px solid var(--line);border-radius:0"><span><b class="num">${x.h}</b> <span class="hint">Par ${x.par} · SI ${x.si}</span></span>${res}</div>`;
   }
-  h+=`</div>${K.carry&&K.done===18?`<p class="hint">${K.carry} skin${K.carry>1?"s":""} still tied after 18. Settle it however the group likes.</p>`:""}</section>`;
+  h+=`</div>${K.carry&&K.done===roundHoles(r.id)?`<p class="hint">${K.carry} skin${K.carry>1?"s":""} still tied after ${K.done}. Settle it however the group likes.</p>`:""}</section>`;
   // trip totals
   const trip={};rs.forEach(x=>{const k=computeSkins(x.id);const pp=k.skins?k.pot/k.skins:0;Object.entries(k.won).forEach(([p,n])=>{const t=trip[p]||(trip[p]={n:0,$:0});t.n+=n;t.$+=n*pp})});
   const tl=Object.entries(trip).sort((a,b)=>b[1].n-a[1].n);
@@ -692,7 +700,7 @@ function renderGames(){
 
 /* ---------- side games: Nassau, Nine-point, Hammer, Vegas ---------- */
 const GAMES={
-  nassau:{label:"Nassau",sides:true,max:2,blurb:"Front 9, back 9 and overall 18 are separate bets. Better net ball per side. A new bet (press) starts automatically whenever a side goes down by the press number in a bet, and runs to the end of that nine."},
+  nassau:{label:"Nassau",sides:true,max:2,blurb:"Front 9, back 9 and overall 18 are separate bets (on other course lengths, the first half, second half and all holes). Better net ball per side. A new bet (press) starts automatically whenever a side goes down by the press number in a bet, and runs to the end of that nine."},
   nines:{label:"Nine-point",sides:false,min:3,max:4,blurb:"9 points a hole: best net score 5, second 3, third 1 (5-3-1-0 with four). Ties split the points. Settle on the point difference."},
   hammer:{label:"Hammer",sides:true,max:2,blurb:"Each hole is worth the stake. Either side can hammer to double it; the other side accepts or lays down and pays the value before the hammer. Record the hammers on each hole."},
   vegas:{label:"Vegas",sides:true,min:2,max:2,blurb:"Each team's two net scores make a number, low score first (4 and 5 = 45). A gross birdie flips the other team's number (45 becomes 54). Pay the difference per point. Scores are capped at net double bogey."}
@@ -705,8 +713,8 @@ function gameCtx(g){
   ps.forEach(p=>{const ch=courseHcp(p,c);est=est||ch.est;ph[p]=Math.round(ch.v*(num(g.allow)??100)/100)});
   if(ps.length){const low=Math.min(...ps.map(p=>ph[p]));ps.forEach(p=>ph[p]-=low)}   // everyone plays off the low player
   const par=h=>num(c.pars[h-1]),si=h=>num(c.si[h-1]);
-  const net=(p,h)=>{const v=cardVal(r.id,p,h);return v==null?null:v==="x"?"x":v-shotsOn(ph[p],si(h))};
-  return{r,c,ready,ps,ph,est,par,si,net};
+  const net=(p,h)=>{const v=cardVal(r.id,p,h);return v==null?null:v==="x"?"x":v-shotsOn(ph[p],si(h),nHoles(c))};
+  return{r,c,ready,ps,ph,est,par,si,net,N:nHoles(c)};
 }
 // better net ball per side on a hole: 1 = side 1 wins, -1 = side 2, 0 = halved, null = not all in
 function sideResult(X,g,h){
@@ -723,12 +731,13 @@ function computeGame(g){
   if(g.type==="vegas"&&((g.t1||[]).filter(Boolean).length!==2||(g.t2||[]).filter(Boolean).length!==2)){out.why="Vegas needs two players on each side.";return out}
   out.ok=true;const pay=(side,amt)=>{(g[side]||[]).filter(Boolean).forEach(p=>out.money[p]=(out.money[p]||0)+amt)};
   if(g.type==="nassau"){
-    const at=num(g.pressAt)||2,bets=[{name:"Front 9",from:1,to:9,m:0,press:false,nine:true},{name:"Back 9",from:10,to:18,m:0,press:false,nine:true},{name:"Overall 18",from:1,to:18,m:0,press:false,nine:false}];
+    const N=X.N,half=N>=18?9:Math.ceil(N/2);out.ranges=[["front",1,half],["back",half+1,N],["overall",1,N]];
+    const at=num(g.pressAt)||2,bets=[{name:N===18?"Front 9":`Front (1–${half})`,from:1,to:half,m:0,press:false,nine:true},{name:N===18?"Back 9":`Back (${half+1}–${N})`,from:half+1,to:N,m:0,press:false,nine:true},{name:`Overall ${N}`,from:1,to:N,m:0,press:false,nine:false}];
     let thru=0;
-    for(let h=1;h<=18;h++){const res=sideResult(X,g,h);if(res==null)break;thru=h;out.holes.push({h,res});
+    for(let h=1;h<=N;h++){const res=sideResult(X,g,h);if(res==null)break;thru=h;out.holes.push({h,res});
       for(const b of bets)if(h>=b.from&&h<=b.to)b.m+=res;
       for(const b of [...bets])if(b.nine&&!b.press&&h>=b.from&&h<b.to&&Math.abs(b.m)>=at){b.press=true;
-        bets.push({name:`Press · ${b.to===9?"front":"back"} from ${h+1}`,from:h+1,to:b.to,m:0,press:false,nine:true,by:b.m>0?"t2":"t1"})}}
+        bets.push({name:`Press · ${b.to===half?"front":"back"} from ${h+1}`,from:h+1,to:b.to,m:0,press:false,nine:true,by:b.m>0?"t2":"t1"})}}
     for(const b of bets){const done=thru>=b.to,started=thru>=b.from;
       const lead=b.m>0?teamLabel(g,"t1"):b.m<0?teamLabel(g,"t2"):"";
       const st=!started?"not started":b.m===0?(done?"halved":"all square"):done?`${lead} won, ${Math.abs(b.m)} up`:`${lead} ${Math.abs(b.m)} up`;
@@ -738,7 +747,7 @@ function computeGame(g){
   }
   if(g.type==="hammer"){
     let tot=0,thru=0;const H=g.ham||{};
-    for(let h=1;h<=18;h++){const x=H[h]||{},n=num(x.n)||0,v=stake*2**n;let d=null,res=null;
+    for(let h=1;h<=X.N;h++){const x=H[h]||{},n=num(x.n)||0,v=stake*2**n;let d=null,res=null;
       if(x.d&&n>0){d=x.d;const amt=stake*2**(n-1);tot+=d==="t1"?-amt:amt;out.holes.push({h,txt:`${teamLabel(g,d)} laid down · ${money(amt)}`});thru=h;continue}
       res=sideResult(X,g,h);if(res==null){if(n)out.holes.push({h,txt:`${n} hammer${n>1?"s":""} · ${money(v)} · scores to come`});continue}
       thru=h;tot+=res*v;out.holes.push({h,txt:res?`${teamLabel(g,res>0?"t1":"t2")} wins ${money(v)}${n?` (${n} hammer${n>1?"s":""})`:""}`:"Halved"});}
@@ -748,7 +757,7 @@ function computeGame(g){
     let pts=0,thru=0;
     const numFor=(side,h,flip)=>{const v=g[side].map(p=>{const n=X.net(p,h),cap=X.par(h)+2;return n==="x"?cap:Math.min(n,cap)}).sort((a,b)=>a-b);
       let [lo,hi]=v;if(flip)[lo,hi]=[hi,lo];return Number(String(lo)+String(hi))};
-    for(let h=1;h<=18;h++){if([...g.t1,...g.t2].some(p=>X.net(p,h)==null))break;thru=h;
+    for(let h=1;h<=X.N;h++){if([...g.t1,...g.t2].some(p=>X.net(p,h)==null))break;thru=h;
       const bird=side=>g.flip!==false&&g[side].some(p=>{const v=cardVal(X.r.id,p,h);return v!=="x"&&v<=X.par(h)-1});
       const b1=bird("t1"),b2=bird("t2"),f1=b2&&!b1,f2=b1&&!b2;
       const A=numFor("t1",h,f1),B=numFor("t2",h,f2),d=B-A;pts+=d;
@@ -758,7 +767,7 @@ function computeGame(g){
   }
   if(g.type==="nines"){
     const ps=X.ps,P=ps.length===3?[5,3,1]:[5,3,1,0],tot={};ps.forEach(p=>tot[p]=0);let thru=0;
-    for(let h=1;h<=18;h++){const ns=ps.map(p=>({p,v:X.net(p,h)}));if(ns.some(x=>x.v==null))break;thru=h;
+    for(let h=1;h<=X.N;h++){const ns=ps.map(p=>({p,v:X.net(p,h)}));if(ns.some(x=>x.v==null))break;thru=h;
       ns.forEach(x=>x.k=x.v==="x"?Infinity:x.v);ns.sort((a,b)=>a.k-b.k);
       const got={};for(let i=0;i<ns.length;){let j=i;while(j+1<ns.length&&ns[j+1].k===ns[i].k)j++;const share=P.slice(i,j+1).reduce((a,b)=>a+b,0)/(j-i+1);for(let k=i;k<=j;k++)got[ns[k].p]=share;i=j+1}
       ps.forEach(p=>tot[p]+=got[p]);out.holes.push({h,txt:ps.map(p=>`${shortName(p)} ${+got[p].toFixed(2)}`).join(" · ")})}
@@ -800,7 +809,7 @@ function renderGameSheet(el){
     <p class="hint" style="margin:0">Everyone plays off the low player in this game.${R.X?.est?" Strokes are estimated until the course rating/slope are in.":""}</p></div></section>`;
   if(g.type==="hammer"&&R.ok){const H=g.ham||{};
     h+=`<section class="sec"><h3>Hammers by hole</h3><p class="hint">Tap + each time someone hammers. If the last hammer was turned down, pick who laid down.</p><div class="mlist">`;
-    for(let x=1;x<=18;x++){const e=H[x]||{},n=num(e.n)||0;
+    for(let x=1;x<=R.X.N;x++){const e=H[x]||{},n=num(e.n)||0;
       h+=`<div class="lv" style="border:0;border-bottom:1px solid var(--line);border-radius:0;gap:8px"><span><b class="num">${x}</b> <span class="hint">${money((num(g.stake)||0)*2**n)}</span></span>
       <span style="display:flex;gap:6px;align-items:center"><span class="step" style="display:flex;gap:4px"><button data-act="ham" data-h="${x}" data-d="-1" ${dis} aria-label="One fewer hammer">−</button><span class="num" style="min-width:22px;text-align:center">${n}</span><button data-act="ham" data-h="${x}" data-d="1" ${dis} aria-label="Hammer">+</button></span>
       <select data-g="ham:${x}" ${dis||!n?"disabled":""} aria-label="Laid down"><option value="">Played out</option><option value="t1" ${e.d==="t1"?"selected":""}>${esc(teamLabel(g,"t1"))} laid down</option><option value="t2" ${e.d==="t2"?"selected":""}>${esc(teamLabel(g,"t2"))} laid down</option></select></span></div>`}
@@ -836,6 +845,7 @@ function chokeFrom(seq,total,sides,label,final,add){
   seq.forEach((x,i)=>{
     if(i===start)leadAt=run;
     if(i>=start&&run!==0&&x.res===(run>0?-1:1)){const s=run>0?0:1;add(sides[s],1,`${label}: lost ${x.h} while ${Math.abs(run)} up`)}
+    if(final&&i===total-1&&run===0&&x.res!==0){const s=x.res>0?1:0;add(sides[s],2,`${label}: all square on ${x.h}, lost it and the match`)}
     run+=x.res;
   });
   if(final&&seq.length===total&&leadAt){const s=leadAt>0?0:1;if(Math.sign(run)!==Math.sign(leadAt))add(sides[s],1,`${label}: ${Math.abs(leadAt)} up with 3 to play, ${run===0?"halved":"lost"}`)}
@@ -852,7 +862,7 @@ function computeChoke(){
   for(const g of Object.values(S.games||{})){
     if(g.type!=="nassau")continue;const R=computeGame(g);if(!R.ok)continue;const r=roundById(g.round);
     const sides=[(g.t1||[]).filter(Boolean),(g.t2||[]).filter(Boolean)],who=`${teamLabel(g,"t1")} v ${teamLabel(g,"t2")}`;
-    for(const [name,a,z] of [["front",1,9],["back",10,18],["overall",1,18]]){
+    for(const [name,a,z] of R.ranges||[]){
       const seq=R.holes.filter(x=>x.h>=a&&x.h<=z);chokeFrom(seq,z-a+1,sides,`${r?.name||""} Nassau ${name} · ${who}`,true,add);
     }
   }
@@ -861,7 +871,7 @@ function computeChoke(){
 function renderChoke(){
   const {pts,log}=computeChoke();const rows=Object.entries(pts).sort((a,b)=>b[1]-a[1]);
   let h=`<section class="sec"><div class="rhead"><h2>Choke index</h2><span class="hint">Whole trip</span></div>
-    <p class="hint">1 point for every hole lost while ahead in the last 3 holes of a match, plus 1 for a lead held with 3 to play that didn't end in a win. Counts match-play matches and Nassau bets. Biggest choker buys dinner.</p>`;
+    <p class="hint">1 point for every hole lost while ahead in the last 3 holes of a match, plus 1 for a lead held with 3 to play that didn't end in a win. All square on the last hole and losing it (and the match): 2 points. Counts match-play matches and Nassau bets. Biggest choker buys dinner.</p>`;
   if(!rows.length)return h+`<p class="hint">Nobody has choked yet.</p></section>`;
   h+=`<div class="tbl"><table><tbody>${rows.map(([p,n],i)=>`<tr><td><span class="tdot ${S.players[p]?.team||"none"}"></span>${esc(S.players[p]?.name||"")}${n===rows[0][1]?` <span class="pill">${rows.filter(x=>x[1]===n).length>1?"splits dinner":"buys dinner"}</span>`:""}</td><td class="r num"><b>${n}</b></td></tr>`).join("")}</tbody></table></div>`;
   h+=`<div class="mlist" style="margin-top:8px">${log.slice(-12).reverse().map(x=>`<div class="lv" style="border:0;border-bottom:1px solid var(--line);border-radius:0"><span><b>${esc(x.ps.map(shortName).join(" + "))}</b></span><span class="hint" style="text-align:right">${esc(x.why)}</span></div>`).join("")}</div>`;
@@ -919,11 +929,11 @@ function renderSheet(){
   h+=`<section class="sec"><h3>Format</h3><div class="card">
     <div class="grid2"><div class="field"><label for="mf">Format</label><select id="mf" data-m="format" ${dis}><option value="">TBD (no points)</option>${[[1,"1 v 1"],[2,"2 v 2"]].map(([n,g])=>`<optgroup label="${g}">${Object.entries(FORMATS).filter(([,v])=>v.side===n).map(([k,v])=>`<option value="${k}" ${m.format===k?"selected":""}>${v.label}</option>`).join("")}</optgroup>`).join("")}</select></div>
     <div class="field"><label for="mp">Points</label><input id="mp" type="number" step="0.5" inputmode="decimal" value="${esc(m.pts??1)}" data-m="pts" ${dis}></div></div>
-    <div class="field"><label>Holes</label><div class="seg" style="grid-template-columns:repeat(3,1fr)">${[[1,9,"Front 9"],[10,18,"Back 9"],[1,18,"18 holes"]].map(([a,b,l])=>`<button data-act="holes" data-r="${a}-${b}" aria-pressed="${num(m.from)===a&&num(m.to)===b}" ${dis}>${l}</button>`).join("")}</div></div>
+    <div class="field"><label>Holes</label><div class="seg" style="grid-template-columns:repeat(${roundHoles(m.round)===18?3:1},1fr)">${(roundHoles(m.round)===18?[[1,9,"Front 9"],[10,18,"Back 9"],[1,18,"18 holes"]]:[[1,roundHoles(m.round),`All ${roundHoles(m.round)} holes`]]).map(([a,b,l])=>`<button data-act="holes" data-r="${a}-${b}" aria-pressed="${num(m.from)===a&&num(m.to)===b}" ${dis}>${l}</button>`).join("")}</div></div>
     <div class="grid3">
       <div class="field"><label for="mr">Round</label><select id="mr" data-m="round" ${dis}>${rounds().map(x=>`<option value="${esc(x.id)}" ${x.id===m.round?"selected":""}>${esc(x.name)}</option>`).join("")}</select></div>
       <div class="field"><label for="mfr">From hole</label><input id="mfr" type="number" inputmode="numeric" value="${esc(m.from??1)}" data-m="from" ${dis}></div>
-      <div class="field"><label for="mto">To hole</label><input id="mto" type="number" inputmode="numeric" value="${esc(m.to??18)}" data-m="to" ${dis}></div>
+      <div class="field"><label for="mto">To hole</label><input id="mto" type="number" inputmode="numeric" value="${esc(m.to??roundHoles(m.round))}" data-m="to" ${dis}></div>
     </div>
     <div class="grid2"><div class="field"><label for="mg">Tee time / group</label><input id="mg" type="text" value="${esc(m.group??"")}" data-m="group" ${dis}></div>
     <div class="field"><label for="ml">Label</label><input id="ml" type="text" value="${esc(m.label??"")}" data-m="label" ${dis}></div></div>
@@ -949,6 +959,7 @@ function render(){
   if(S.err){main.innerHTML=`<div class="empty">${esc(S.err)}</div>`;return}
   if(S.loaded<5){if(!main.querySelector(".splash"))main.innerHTML=`<div class="splash"><img src="../brand/logo.png" alt="ShipStiffs">Loading the scoreboard…</div>`;return}
   const lockBanner=S.readOnly?`<div class="banner" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span><b>View only.</b> Enter the trip PIN to keep score.</span><button class="btn primary" data-act="pin" style="padding:8px 12px">Enter PIN</button></div>`:"";
+  if(!S.setup&&NEW_EVENT_DEFAULTS[EVENT]?.name){const [x,...y]=NEW_EVENT_DEFAULTS[EVENT].name.split(" ");$("#evname").innerHTML=`<small>ShipStiffs</small>${esc(x)} <span>${esc(y.join(" "))}</span>`}
   if(!S.setup){main.innerHTML=EVENT==="bandon-2026"?`<div class="empty">The tournament hasn't been set up yet.</div>`:renderNewEvent();return}
   if(S.setup.name){const [a,...b]=String(S.setup.name).split(" ");$("#evname").innerHTML=`<small>ShipStiffs</small>${esc(a)} <span>${esc(b.join(" "))}</span>`;document.title=S.setup.name+" · ShipStiffs"}
   const hs=$("#hchips")?.scrollLeft,rs=$("#rchips")?.scrollLeft;
@@ -1037,7 +1048,7 @@ document.addEventListener("click",e=>{
     case"addplayer":{const id="p"+Date.now().toString(36);serial("players/"+id,()=>S.db.doc("players/"+id).set({name:"New player",index:null,team:""}));break}
     case"addmatch":{const n=Math.max(0,...matchList().map(m=>num(m.n)||0))+1;const id="m"+String(n).padStart(2,"0")+Date.now().toString(36).slice(-3);
       const rs=rounds();const round=b.dataset.round||rs[rs.length-1]?.id||"";
-      serial("matches/"+id,()=>S.db.doc("matches/"+id).set({n,round,from:1,to:18,group:"",label:"",format:"",pts:1,t1:[],t2:[],manual:null,note:""})).then(()=>{S.openMatch=id;render()});break}
+      serial("matches/"+id,()=>S.db.doc("matches/"+id).set({n,round,from:1,to:roundHoles(round),group:"",label:"",format:"",pts:1,t1:[],t2:[],manual:null,note:""})).then(()=>{S.openMatch=id;render()});break}
   }
 });
 document.addEventListener("toggle",e=>{const d=e.target;if(d.matches&&d.matches("details[data-course]")&&d.open)S.openCourse=d.dataset.course},true);
@@ -1064,9 +1075,9 @@ document.addEventListener("change",e=>{
     }
     else if(kind==="course"){
       const c=S.courses[id]||{};
-      if(field==="pars"||field==="si"){const arr=Array.from({length:18},(_,i)=>num((c[field]||[])[i]));arr[Number(hole)-1]=num(v);
+      if(field==="pars"||field==="si"){const arr=Array.from({length:nHoles(c)},(_,i)=>num((c[field]||[])[i]));arr[Number(hole)-1]=num(v);
         serial("courses/"+id,()=>S.courses[id]?S.db.doc("courses/"+id).update({[field]:arr}):S.db.doc("courses/"+id).set({[field]:arr}))}
-      else{const val=field==="tees"?v:num(v);serial("courses/"+id,()=>S.courses[id]?S.db.doc("courses/"+id).update({[field]:val}):S.db.doc("courses/"+id).set({[field]:val}))}
+      else{const val=field==="tees"?v:field==="gross"?v==="1":field==="holes"?(Math.min(36,Math.max(1,Math.round(num(v)||18)))):num(v);serial("courses/"+id,()=>S.courses[id]?S.db.doc("courses/"+id).update({[field]:val}):S.db.doc("courses/"+id).set({[field]:val}))}
     }
   }else if(el.dataset.g){gameChange(el);
   }else if(el.dataset.m){
@@ -1130,27 +1141,31 @@ function makeStore(sb){
 /* ---------- first-run setup for a new event ---------- */
 const NEW_EVENT_DEFAULTS={
   redtail:{name:"RedTail Test Drive",rounds:[{course:"RedTail Golf Center",day:"Sun 10/11"}]},
-  "bandon-crossings":{name:"Bandon Warm-ups",rounds:[{course:"Bandon Crossings",day:"Thu 10/15"},{course:"Shorty's",day:"Fri 10/16 AM"}]}
+  "bandon-crossings":{name:"Bandon Warm-ups",rounds:[{course:"Bandon Crossings",day:"Thu 10/15",holes:18},{course:"Shorty's",day:"Fri 10/16 AM",holes:19}]}
 };
 // course cards we already know, filled in when an event is created
 const KNOWN_COURSES={
-  shortys:{name:"Shorty's",pars:Array(18).fill(3),si:[7, 5, 13, 15, 8, 14, 9, 10, 17, 11, 3, 4, 2, 1, 18, 6, 16, 12],par:54,gross:true,source:"Shorty's card: 19 par 3s, no handicap. Holes 1–18 here (the 19th is off-app). Played gross; SI is by yardage."}
+  shortys:{name:"Shorty's",holes:19,pars:Array(19).fill(3),si:[7, 5, 13, 15, 8, 14, 9, 10, 17, 11, 3, 4, 2, 1, 19, 6, 16, 12, 18],par:57,gross:true,source:"Shorty's card: 19 par 3s, no handicap, played gross. SI is by yardage."},
+  preserve:{name:"Bandon Preserve",holes:13,pars:Array(13).fill(3),si:[1,2,3,4,5,6,7,8,9,10,11,12,13],par:39,gross:true,source:"13 par 3s, no handicap, played gross. SI is just hole order; fix pars from the card if any differ."}
 };
-const courseId=name=>(name.toLowerCase().match(/[a-z0-9]+/g)||["course"]).join("").replace(/golf(center|club|course|links)?$/,"").replace(/^bandon(?=crossings$)/,"")||"course";
+const courseId=name=>(name.toLowerCase().match(/[a-z0-9]+/g)||["course"]).join("").replace(/golf(center|club|course|links)?$/,"").replace(/^bandon(?=(crossings|preserve)$)/,"")||"course";
 function renderNewEvent(){
-  const d=S.newEv||(S.newEv={name:"",rounds:[{course:"",day:""}],...structuredClone(NEW_EVENT_DEFAULTS[EVENT]||{}),players:[{name:"",index:""},{name:"",index:""}],holes:"1-18",format:"singles_mp"});
+  const d=S.newEv||(S.newEv={name:"",rounds:[{course:"",day:"",holes:18}],...structuredClone(NEW_EVENT_DEFAULTS[EVENT]||{}),players:[{name:"",index:""},{name:"",index:""}],holes:"all",format:"singles_mp"});
   const games=Object.entries(FORMATS).filter(([,v])=>v.side===1);
   const two=d.players.length===2;
   return`<section class="sec"><h2>Set up this event</h2><p class="hint">Add the players and the round. You can change any of this later on the Setup and Matches tabs.</p>
   ${S.readOnly?`<div class="banner" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span>Enter the PIN to create it.</span><button class="btn primary" data-act="pin" style="padding:8px 12px">Enter PIN</button></div>`:""}
   <div class="card">
     <div class="field"><label for="ne-name">Event name</label><input id="ne-name" type="text" value="${esc(d.name)}" data-ne="name"></div>
-    ${d.rounds.map((r,i)=>`<div class="grid2"><div class="field"><label for="ne-course${i}">${d.rounds.length>1?`Round ${i+1} course`:"Course"}</label><input id="ne-course${i}" type="text" value="${esc(r.course)}" data-ner="${i}:course"></div>
-    <div class="field"><label for="ne-day${i}">Day</label><input id="ne-day${i}" type="text" value="${esc(r.day)}" data-ner="${i}:day"></div></div>`).join("")}
+    ${d.rounds.map((r,i)=>{const kn=KNOWN_COURSES[courseId(r.course||"")],n=kn?kn.holes:(num(r.holes)||18),std=n===18||n===9;return`<div class="grid2"><div class="field"><label for="ne-course${i}">${d.rounds.length>1?`Round ${i+1} course`:"Course"}</label><input id="ne-course${i}" type="text" value="${esc(r.course)}" data-ner="${i}:course"></div>
+    <div class="field"><label for="ne-day${i}">Day</label><input id="ne-day${i}" type="text" value="${esc(r.day)}" data-ner="${i}:day"></div></div>
+    <div class="grid2"><div class="field"><label for="ne-holes${i}">Holes on this course</label><select id="ne-holes${i}" data-nerh="${i}" ${kn?"disabled":""}><option value="18" ${n===18?"selected":""}>18 holes</option><option value="9" ${n===9?"selected":""}>9 holes</option><option value="other" ${std?"":"selected"}>Other…</option></select></div>
+    ${std?`<div></div>`:`<div class="field"><label for="ne-hn${i}">How many</label><input id="ne-hn${i}" type="number" inputmode="numeric" min="1" max="36" value="${n}" data-ner="${i}:holes" ${kn?"disabled":""}></div>`}</div>
+    <p class="hint" id="ne-kn${i}" style="margin:0">${kn?`${esc(kn.name)}: ${kn.holes} holes, ${kn.gross?"played gross":"net"}. Course card filled in for you.`:""}</p>`}).join("")}
     <div style="display:flex;gap:8px">${d.rounds.length<4?`<button class="btn" data-act="neradd">Add a round</button>`:""}${d.rounds.length>1?`<button class="btn" data-act="nerdrop">Remove last round</button>`:""}</div>
     ${d.players.map((p,i)=>`<div class="plrow" style="grid-template-columns:minmax(0,1fr) 80px"><div class="field"><label for="ne-p${i}">Player ${i+1}</label><input id="ne-p${i}" type="text" placeholder="Name" value="${esc(p.name)}" data-nep="${i}:name"></div><div class="field"><label for="ne-i${i}">Index</label><input id="ne-i${i}" type="number" step="0.1" inputmode="decimal" value="${esc(p.index)}" data-nep="${i}:index"></div></div>`).join("")}
     <div style="display:flex;gap:8px">${d.players.length<8?`<button class="btn" data-act="neadd">Add a player</button>`:""}${d.players.length>2?`<button class="btn" data-act="nedrop">Remove last</button>`:""}</div>
-    ${two?`<div class="field"><label for="ne-holes">Holes</label><select id="ne-holes" data-ne="holes">${[["1-9","Front 9"],["10-18","Back 9"],["1-18","18 holes"]].map(([v,l])=>`<option value="${v}" ${d.holes===v?"selected":""}>${l}</option>`).join("")}</select></div>
+    ${two?`<div class="field"><label for="ne-holes">Holes</label><select id="ne-holes" data-ne="holes">${(()=>{const r0=d.rounds[0]||{},n=KNOWN_COURSES[courseId(r0.course||"")]?.holes||num(r0.holes)||18;return n===18?[["1-9","Front 9"],["10-18","Back 9"],["all","18 holes"]]:[["all",`All ${n} holes`]]})().map(([v,l])=>`<option value="${v}" ${d.holes===v?"selected":""}>${l}</option>`).join("")}</select></div>
     <div class="field"><label for="ne-format">Game</label><select id="ne-format" data-ne="format">${games.map(([k,v])=>`<option value="${k}" ${d.format===k?"selected":""}>${v.label}</option>`).join("")}</select></div>
     <p class="hint" style="margin:0">${esc(ALLOW_NOTE[d.format]||"")}</p>`:`<p class="hint" style="margin:0">With ${d.players.length} players, set up the games on the Matches tab after you create the event.</p>`}
     <button class="btn primary" data-act="newevent" ${S.readOnly?"disabled":""}>Create event</button>
@@ -1159,22 +1174,27 @@ function renderNewEvent(){
 document.addEventListener("input",e=>{const ds=e.target.dataset||{};if(!S.newEv)return;
   if(ds.ne)S.newEv[ds.ne]=e.target.value;
   if(ds.nep){const [i,k]=ds.nep.split(":");S.newEv.players[+i][k]=e.target.value}
-  if(ds.ner){const [i,k]=ds.ner.split(":");S.newEv.rounds[+i][k]=e.target.value}});
+  if(ds.ner){const [i,k]=ds.ner.split(":");S.newEv.rounds[+i][k]=k==="holes"?num(e.target.value):e.target.value;if(k==="course")neKnown(+i)}});
+document.addEventListener("change",e=>{const i=e.target.dataset&&e.target.dataset.nerh;if(i==null||!S.newEv)return;const v=e.target.value;S.newEv.rounds[+i].holes=v==="other"?(num(S.newEv.rounds[+i].holes)>0&&![9,18].includes(num(S.newEv.rounds[+i].holes))?num(S.newEv.rounds[+i].holes):12):num(v);document.activeElement?.blur();render();if(v==="other")setTimeout(()=>{const f=$("#ne-hn"+i);if(f){f.focus();f.select()}},0)});
+// typing a course we know (Shorty's, the Preserve) sets its holes in place, without redrawing under the keyboard
+function neKnown(i){const r=S.newEv?.rounds[i];if(!r)return;const kn=KNOWN_COURSES[courseId(r.course||"")],sel=$("#ne-holes"+i),hint=$("#ne-kn"+i);
+  if(sel){sel.disabled=!!kn;if(kn)sel.value=kn.holes===18?"18":kn.holes===9?"9":"other"}
+  if(hint)hint.textContent=kn?`${kn.name}: ${kn.holes} holes, ${kn.gross?"played gross":"net"}. Course card filled in for you.`:"";}
 document.addEventListener("change",e=>{const k=e.target.dataset&&e.target.dataset.ne;if(k&&S.newEv){S.newEv[k]=e.target.value;if(k==="format")render()}});
 async function createEvent(){
   const d=S.newEv;if(!d||S.readOnly)return;
   const ps=d.players.map(p=>({name:p.name.trim(),index:num(p.index)}));
   if(ps.some(p=>!p.name)){toast("Add every player's name, or remove the empty rows.");return}
-  const rs=d.rounds.map((r,i)=>({id:"r"+(i+1),course:courseId(r.course),name:r.course.trim()||"Round "+(i+1),day:r.day.trim()}));
+  const rs=d.rounds.map((r,i)=>({id:"r"+(i+1),course:courseId(r.course),name:r.course.trim()||"Round "+(i+1),day:r.day.trim(),holes:KNOWN_COURSES[courseId(r.course)]?.holes||num(r.holes)||18}));
   const cid=rs[0].course;
   const two=ps.length===2;
   const writes=[
-    ["setup/main",{name:d.name.trim()||"Test Event",teams:two?{t1:{name:ps[0].name},t2:{name:ps[1].name}}:{t1:{name:"Team 1"},t2:{name:"Team 2"}},allowances:{...DEFAULT_ALLOW},rounds:rs}],
+    ["setup/main",{name:d.name.trim()||"Test Event",teams:two?{t1:{name:ps[0].name},t2:{name:ps[1].name}}:{t1:{name:"Team 1"},t2:{name:"Team 2"}},allowances:{...DEFAULT_ALLOW},rounds:rs.map(({holes,...r})=>r)}],
     ...ps.map((p,i)=>["players/p"+(i+1),{name:p.name,index:p.index,team:two?(i?"t2":"t1"):""}]),
   ];
-  if(two){const [from,to]=d.holes.split("-").map(Number);
+  if(two){const [from,to]=d.holes==="all"?[1,rs[0].holes]:d.holes.split("-").map(Number);
     writes.push(["matches/m1",{n:1,round:"r1",from,to,group:"",label:"1v1",format:d.format,pts:1,t1:["p1"],t2:["p2"],manual:null,note:""}])}
-  for(const r of rs)if(!S.courses[r.course]&&!writes.some(w=>w[0]==="courses/"+r.course))writes.push(["courses/"+r.course,KNOWN_COURSES[r.course]?{...KNOWN_COURSES[r.course]}:{name:r.name}]);
+  for(const r of rs)if(!S.courses[r.course]&&!writes.some(w=>w[0]==="courses/"+r.course))writes.push(["courses/"+r.course,KNOWN_COURSES[r.course]?{...KNOWN_COURSES[r.course]}:{name:r.name,holes:r.holes}]);
   for(const [path,data] of writes)await write(()=>S.db.doc(path).set(data));
   S.tab=two?"setup":"matches";S.openCourse=cid;ls.set(navKey("tab"),S.tab);render();
   toast(two?"Event created. Next: scan the scorecard on Setup.":"Event created. Add the games here, then scan the scorecard on Setup.");
@@ -1230,10 +1250,13 @@ async function readCard(){
   }
 }
 function loadCard(card){
-  const h={};(card?.holes||[]).forEach(x=>{if(x.hole>=1&&x.hole<=18)h[x.hole]=x});
+  const h={};(card?.holes||[]).forEach(x=>{if(x.hole>=1&&x.hole<=36)h[x.hole]=x});
   const tees=card?.tees||[];SCAN.card=card;
-  SCAN.pars=Array.from({length:18},(_,i)=>h[i+1]?.par??null);
-  SCAN.si=Array.from({length:18},(_,i)=>h[i+1]?.si??null);
+  const top=Math.max(0,...Object.keys(h).map(Number)),cur=S.courses[S.scanCourse];
+  SCAN.n=num(cur?.holes)?nHoles(cur):(top>18||(top>=9&&top<18)?top:18);   // the course's own count, else what the card shows
+  SCAN.pars=Array.from({length:SCAN.n},(_,i)=>h[i+1]?.par??null);
+  SCAN.si=Array.from({length:SCAN.n},(_,i)=>h[i+1]?.si??null);
+  SCAN.noSI=SCAN.si.every(v=>v==null);if(SCAN.noSI)SCAN.si=SCAN.si.map((_,i)=>i+1);   // no handicap row (par-3 courses): hole order
   const playing=(S.courses[S.scanCourse]?.tees||"").toLowerCase();   // default to the tees this course already plays
   SCAN.tee=Math.max(0,tees.findIndex(t=>(t.name||"").toLowerCase()===playing));
   const t=tees[SCAN.tee]||{};SCAN.rating=t.rating??null;SCAN.slope=t.slope??null;drawReview();
@@ -1245,10 +1268,10 @@ function scanIssues(){
   if(missS.length)iss.push(`No stroke index for hole${missS.length>1?"s":""} ${missS.join(", ")}`);
   const seen={};si.forEach(v=>{if(v!=null)seen[v]=(seen[v]||0)+1});
   const dup=Object.keys(seen).filter(k=>seen[k]>1);if(dup.length)iss.push(`Stroke index used twice: ${dup.join(", ")}`);
-  if(si.some(v=>v!=null&&(v<1||v>18)))iss.push("Stroke index must be 1–18");
+  if(si.some(v=>v!=null&&(v<1||v>SCAN.n)))iss.push(`Stroke index must be 1–${SCAN.n}`);
   if(pars.some(v=>v!=null&&(v<3||v>6)))iss.push("A par looks wrong (should be 3, 4 or 5)");
-  const tot=pars.reduce((a,v)=>a+(v||0),0);if(!missP.length&&(tot<66||tot>74))iss.push(`Par adds up to ${tot}. Check it`);
-  if(SCAN.rating==null||SCAN.slope==null)iss.push("Rating or slope missing for the chosen tee");
+  const tot=pars.reduce((a,v)=>a+(v||0),0);if(SCAN.n===18&&!missP.length&&(tot<66||tot>74))iss.push(`Par adds up to ${tot}. Check it`);
+  if(!SCAN.noSI&&(SCAN.rating==null||SCAN.slope==null))iss.push("Rating or slope missing for the chosen tee");
   return iss;
 }
 function drawReview(){
@@ -1259,16 +1282,17 @@ function drawReview(){
   let h=`<div class="rhead"><h2>Check the card</h2><button class="btn" data-scan="close" style="padding:8px 12px">Cancel</button></div>
     <p class="hint" style="margin:0">Read from ${SCAN.imgs.length} photo${SCAN.imgs.length>1?"s":""}${card.course_name?` of <b>${esc(card.course_name)}</b>`:""}. Fix anything highlighted, then save.</p>
     <div class="thumbs">${SCAN.imgs.map(i=>`<img src="${i.preview}" alt="Scorecard photo">`).join("")}</div>`;
-  h+=iss.length?`<div class="banner"><b>Check these:</b><ul class="issues">${iss.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:`<div class="banner" style="background:var(--t1-soft)">Everything adds up. Par ${tot}, stroke index 1–18 used once each.</div>`;
+  h+=iss.length?`<div class="banner"><b>Check these:</b><ul class="issues">${iss.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:`<div class="banner" style="background:var(--t1-soft)">Everything adds up. Par ${tot}, stroke index 1–${SCAN.n} used once each.</div>`;
   h+=`<section class="card"><div class="field"><label for="scantee">Tees you're playing</label><select id="scantee">${tees.map((t,i)=>`<option value="${i}" ${i===SCAN.tee?"selected":""}>${esc(t.name)}${t.rating!=null||t.slope!=null?` · ${t.rating??"?"}/${t.slope??"?"}`:""}</option>`).join("")||"<option>No tees found</option>"}</select></div>
     <div class="grid2"><div class="field"><label for="scanrating">Rating</label><input id="scanrating" type="number" step="0.1" inputmode="decimal" value="${SCAN.rating??""}" class="${SCAN.rating==null?"bad":""}"></div>
     <div class="field"><label for="scanslope">Slope</label><input id="scanslope" type="number" inputmode="numeric" value="${SCAN.slope??""}" class="${SCAN.slope==null?"bad":""}"></div></div></section>`;
   h+=`<section class="card">`;
-  for(const half of [[0,9],[9,18]]){h+=`<div class="holes-grid">`;
+  for(const half of chunks9(SCAN.n).map(([a,z])=>[a-1,z])){h+=`<div class="holes-grid">`;
     for(let i=half[0];i<half[1];i++)h+=`<span class="hl">${i+1}</span>`;
     for(let i=half[0];i<half[1];i++)h+=cell("pars",i);
     for(let i=half[0];i<half[1];i++)h+=cell("si",i);h+=`</div>`}
   h+=`<p class="hint" style="margin:0">Top row par (total ${tot}), shaded row stroke index.</p></section>`;
+  if(SCAN.noSI)h+=`<p class="hint" style="margin:0">This card has no handicap row, so stroke index is set in hole order. If the course has no handicaps, set it to <b>Gross only</b> on its Setup card after saving.</p>`;
   if(card.notes)h+=`<p class="hint" style="margin:0"><b>Scanner notes:</b> ${esc(card.notes)}</p>`;
   h+=`<div class="rowbtn"><button class="btn" data-scan="retry">Rescan</button><button class="btn primary" data-scan="save">Save to course</button></div>`;
   scanView(h);
@@ -1290,7 +1314,7 @@ $("#scanbox").addEventListener("click",e=>{
   else if(a.dataset.scan==="save"){
     const cid=S.scanCourse,tee=(SCAN.card.tees||[])[SCAN.tee]||{};
     const teeSets=(SCAN.card.tees||[]).map((t,i)=>({name:t.name,rating:i===SCAN.tee?SCAN.rating:(t.rating??null),slope:i===SCAN.tee?SCAN.slope:(t.slope??null),par:t.par??null}));
-    const data={pars:SCAN.pars,si:SCAN.si,par:SCAN.pars.every(v=>v!=null)?SCAN.pars.reduce((x,y)=>x+y,0):null,rating:SCAN.rating,slope:SCAN.slope,tees:tee.name||"",teeSets,source:"Scanned from the scorecard"};
+    const data={holes:SCAN.pars.length,pars:SCAN.pars,si:SCAN.si,par:SCAN.pars.every(v=>v!=null)?SCAN.pars.reduce((x,y)=>x+y,0):null,rating:SCAN.rating,slope:SCAN.slope,tees:tee.name||"",teeSets,source:"Scanned from the scorecard"};
     if(!S.courses[cid]?.name)data.name={pacific:"Pacific Dunes"}[cid]||SCAN.card.course_name||cid;
     updDoc("courses/"+cid,data);closeScan();S.openCourse=cid;render();toast("Saved. Check the course card on Setup.");
   }

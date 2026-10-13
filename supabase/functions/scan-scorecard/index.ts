@@ -25,7 +25,7 @@ const SCHEMA = {
     course_name: nullableStr,
     holes: {
       type: "array",
-      description: "One entry per hole printed on the card, in hole order.",
+      description: "One entry per hole printed on the card, in hole order. Usually 18, but some courses have 9, 13, 19 or another count.",
       items: {
         type: "object",
         additionalProperties: false,
@@ -49,7 +49,7 @@ const SCHEMA = {
           rating: { ...nullableNum, description: "Course rating for this tee, e.g. 71.4." },
           slope: { ...nullableInt, description: "Slope rating for this tee, e.g. 128." },
           par: nullableInt,
-          yards: { type: "array", items: nullableInt, description: "Yardage for holes 1-18 in order." },
+          yards: { type: "array", items: nullableInt, description: "Yardage for every hole on the card, in hole order." },
         },
       },
     },
@@ -59,8 +59,8 @@ const SCHEMA = {
 
 const PROMPT = `These photos are a golf course scorecard (front and/or back). Read it and fill in the schema.
 
-- holes: every hole 1-18 with its par and the men's handicap (stroke index) row. If the card has separate men's and women's handicap rows, use the men's row and say so in notes. If par differs by tee, use the par for the longest common men's tee and mention the difference in notes.
-- tees: every tee set printed, with its course rating and slope if shown (often near the tee name, in a small table, or written like "71.4/128"), its total par, and its 18 hole yardages. When a tee lists separate men's and women's ratings (e.g. "M-71.4/127 W-77.6/138"), use the men's. Include tee sets printed anywhere on the card, including ones on the far side of the par column.
+- holes: every hole on the card (usually 1-18; short and par-3 courses can have 9, 13, 19 or another count) with its par and the men's handicap (stroke index) row. If the card has no handicap row, use null for si. If the card has separate men's and women's handicap rows, use the men's row and say so in notes. If par differs by tee, use the par for the longest common men's tee and mention the difference in notes.
+- tees: every tee set printed, with its course rating and slope if shown (often near the tee name, in a small table, or written like "71.4/128"), its total par, and its hole yardages in order. When a tee lists separate men's and women's ratings (e.g. "M-71.4/127 W-77.6/138"), use the men's. Include tee sets printed anywhere on the card, including ones on the far side of the par column.
 - Use null for anything you can't read. Never guess a number - a null is better than a wrong value, because a person will review and fill in blanks.
 - notes: briefly list anything unreadable, ambiguous, or that a person should double-check.`;
 
