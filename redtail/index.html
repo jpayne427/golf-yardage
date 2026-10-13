@@ -852,40 +852,34 @@ function gameChange(el){
   else updDoc(path,{[k]:num(v)});
 }
 
-/* ---------- choke index: points lost from a winning position in the last 3 holes of any match ---------- */
-// seq: [{h,res}] in hole order, res 1 = side 1 won the hole, -1 = side 2, 0 = halved; total = holes in the match
-function chokeFrom(seq,total,sides,label,final,add){
-  if(!seq.length)return;const start=Math.max(0,total-3);let run=0,leadAt=null;
+/* ---------- choke index: holes lost from a winning position in the last 3 holes of any official match ---------- */
+// seq: [{h,d}] in hole order, d > 0 = side 1 beat side 2 on the hole (by d holes or points), < 0 = side 2, 0 = halved
+function chokeFrom(seq,total,sides,label,final,add,unit){
+  if(!seq.length)return;const start=Math.max(0,total-3),up=n=>`${n} ${unit}${n===1?"":"s"} up`;let run=0,leadAt=null;
   seq.forEach((x,i)=>{
+    const d=Math.sign(x.d);
     if(i===start)leadAt=run;
-    if(i>=start&&run!==0&&x.res===(run>0?-1:1)){const s=run>0?0:1;add(sides[s],1,`${label}: lost ${x.h} while ${Math.abs(run)} up`)}
-    if(final&&i===total-1&&run===0&&x.res!==0){const s=x.res>0?1:0;add(sides[s],2,`${label}: all square on ${x.h}, lost it and the match`)}
-    run+=x.res;
+    if(i>=start&&run!==0&&d===-Math.sign(run)){const s=run>0?0:1;add(sides[s],1,`${label}: ${unit==="hole"?"lost":"lost ground on"} ${x.h} while ${up(Math.abs(run))}`)}
+    run+=x.d;
+    if(final&&i===total-1&&run-x.d===0&&d!==0){const s=d>0?1:0;add(sides[s],2,`${label}: all square on ${x.h}, lost it and the match`)}
   });
-  if(final&&seq.length===total&&leadAt){const s=leadAt>0?0:1;if(Math.sign(run)!==Math.sign(leadAt))add(sides[s],1,`${label}: ${Math.abs(leadAt)} up with 3 to play, ${run===0?"halved":"lost"}`)}
+  if(final&&seq.length===total&&leadAt){const s=leadAt>0?0:1;if(Math.sign(run)!==Math.sign(leadAt))add(sides[s],1,`${label}: ${up(Math.abs(leadAt))} with 3 to play, ${run===0?"halved":"lost"}`)}
 }
 function computeChoke(){
   const pts={},log=[];
   const add=(ps,n,why)=>{ps.forEach(p=>{if(S.players[p])pts[p]=(pts[p]||0)+n});log.push({ps,why})};
   for(const m of matchList()){
-    const res=computeMatch(m);if(res.f?.kind!=="mp"||res.manual)continue;
-    const seq=res.rows.filter(r=>r.counted).map(r=>({h:r.h,res:r.won==="t1"?1:r.won==="t2"?-1:0}));
+    const res=computeMatch(m),k=res.f?.kind;if(res.manual||!["mp","sf","sp"].includes(k))continue;
+    const seq=res.rows.filter(r=>r.counted).map(r=>({h:r.h,d:k==="mp"?(r.won==="t1"?1:r.won==="t2"?-1:0):k==="sf"?r.side[0]-r.side[1]:r.side[1]-r.side[0]}));
     const r=roundById(m.round);
-    chokeFrom(seq,res.total,res.sides,`${r?.name||""} ${holesLabel(m)} · ${res.sides[0].map(shortName).join("+")} v ${res.sides[1].map(shortName).join("+")}`,res.final,add);
-  }
-  for(const g of Object.values(S.games||{})){
-    if(g.type!=="nassau")continue;const R=computeGame(g);if(!R.ok)continue;const r=roundById(g.round);
-    const sides=[(g.t1||[]).filter(Boolean),(g.t2||[]).filter(Boolean)],who=`${teamLabel(g,"t1")} v ${teamLabel(g,"t2")}`;
-    for(const [name,a,z] of R.ranges||[]){
-      const seq=R.holes.filter(x=>x.h>=a&&x.h<=z);chokeFrom(seq,z-a+1,sides,`${r?.name||""} Nassau ${name} · ${who}`,true,add);
-    }
+    chokeFrom(seq,res.total,res.sides,`${r?.name||""} ${holesLabel(m)} · ${res.sides[0].map(shortName).join("+")} v ${res.sides[1].map(shortName).join("+")}`,res.final,add,k==="mp"?"hole":k==="sf"?"pt":"stroke");
   }
   return{pts,log};
 }
 function renderChoke(){
   const {pts,log}=computeChoke();const rows=Object.entries(pts).sort((a,b)=>b[1]-a[1]);
   let h=`<section class="sec"><div class="rhead"><h2>Choke index</h2><span class="hint">Whole trip</span></div>
-    <p class="hint">1 point for every hole lost while ahead in the last 3 holes of a match, plus 1 for a lead held with 3 to play that didn't end in a win. All square on the last hole and losing it (and the match): 2 points. Counts match-play matches and Nassau bets. Biggest choker buys dinner.</p>`;
+    <p class="hint">Official matches only (not side games). 1 point for every hole your opponent wins or gains on you while you're ahead in the last 3 holes of a match, plus 1 if a lead with 3 to play doesn't end in a win. All square going to the last hole and losing it (and the match): 2 points. Counts match play, Stableford and stroke play. Biggest choker buys dinner.</p>`;
   if(!rows.length)return h+`<p class="hint">Nobody has choked yet.</p></section>`;
   h+=`<div class="tbl"><table><tbody>${rows.map(([p,n],i)=>`<tr><td><span class="tdot ${S.players[p]?.team||"none"}"></span>${esc(S.players[p]?.name||"")}${n===rows[0][1]?` <span class="pill">${rows.filter(x=>x[1]===n).length>1?"splits dinner":"buys dinner"}</span>`:""}</td><td class="r num"><b>${n}</b></td></tr>`).join("")}</tbody></table></div>`;
   h+=`<div class="mlist" style="margin-top:8px">${log.slice(-12).reverse().map(x=>`<div class="lv" style="border:0;border-bottom:1px solid var(--line);border-radius:0"><span><b>${esc(x.ps.map(shortName).join(" + "))}</b></span><span class="hint" style="text-align:right">${esc(x.why)}</span></div>`).join("")}</div>`;
