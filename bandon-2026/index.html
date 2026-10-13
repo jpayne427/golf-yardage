@@ -271,7 +271,7 @@ const ALLOW_NOTE={
   scorecard:"No winner, just gross and net totals."
 };
 
-const S={db:null,user:null,readOnly:false,setup:null,players:{},courses:{},matches:{},cards:{},
+const S={db:null,user:null,readOnly:false,setup:null,players:{},courses:{},matches:{},cards:{},games:{},
   loaded:0,tab:"board",scoreRound:null,scoreGroup:null,scoreHole:null,openMatch:null,pending:{},
   confirm:null,dirty:false,err:null};
 
@@ -662,8 +662,9 @@ function renderGames(){
   const rs=rounds();if(!rs.length)return`<div class="empty">No rounds yet.</div>`;
   if(!roundById(S.gameRound))S.gameRound=S.scoreRound&&roundById(S.scoreRound)?S.scoreRound:rs[0].id;
   const cfg=skinCfg(),r=roundById(S.gameRound),K=computeSkins(r.id);
-  let h=`<section class="sec"><div class="rhead"><h2>Skins</h2><span class="hint">${num(cfg.allow)??100}% hcp${cfg.offLow?" off low":", full strokes"} · ${cfg.carry?"carryovers":"no carryovers"}${num(cfg.buyin)?` · ${money(num(cfg.buyin))} buy-in`:""}</span></div>
-    <div class="chips">${rs.map(x=>`<button class="chip" data-act="ground" data-id="${esc(x.id)}" aria-pressed="${x.id===r.id}">${esc(x.name)}<small>${esc(x.day)}</small></button>`).join("")}</div></section>`;
+  let h=`<section class="sec"><div class="chips">${rs.map(x=>`<button class="chip" data-act="ground" data-id="${esc(x.id)}" aria-pressed="${x.id===r.id}">${esc(x.name)}<small>${esc(x.day)}</small></button>`).join("")}</div></section>`;
+  h+=renderGameList(r);
+  h+=`<section class="sec"><div class="rhead"><h2>Skins</h2><span class="hint">${num(cfg.allow)??100}% hcp${cfg.offLow?" off low":", full strokes"} · ${cfg.carry?"carryovers":"no carryovers"}${num(cfg.buyin)?` · ${money(num(cfg.buyin))} buy-in`:""}</span></div></section>`;
   if(!K.ready)return h+`<div class="empty">Skins start once ${esc(r.name)} has pars and stroke indexes on Setup.</div>`;
   if(K.players.length<2)return h+`<div class="empty">Skins start once players are assigned to ${esc(r.name)} matches.</div>`;
   const per=K.skins?K.pot/K.skins:0;
@@ -687,6 +688,145 @@ function renderGames(){
   return h;
 }
 
+/* ---------- side games: Nassau, Nine-point, Hammer, Vegas ---------- */
+const GAMES={
+  nassau:{label:"Nassau",sides:true,max:2,blurb:"Front 9, back 9 and overall 18 are separate bets. Better net ball per side. A new bet (press) starts automatically whenever a side goes down by the press number in a bet, and runs to the end of that nine."},
+  nines:{label:"Nine-point",sides:false,min:3,max:4,blurb:"9 points a hole: best net score 5, second 3, third 1 (5-3-1-0 with four). Ties split the points. Settle on the point difference."},
+  hammer:{label:"Hammer",sides:true,max:2,blurb:"Each hole is worth the stake. Either side can hammer to double it; the other side accepts or lays down and pays the value before the hammer. Record the hammers on each hole."},
+  vegas:{label:"Vegas",sides:true,min:2,max:2,blurb:"Each team's two net scores make a number, low score first (4 and 5 = 45). A gross birdie flips the other team's number (45 becomes 54). Pay the difference per point. Scores are capped at net double bogey."}
+};
+const GAME_DEFAULT={nassau:{stake:5,pressAt:2,allow:100},nines:{stake:1,allow:100},hammer:{stake:1,allow:100},vegas:{stake:0.25,allow:100,flip:true}};
+const sgn=n=>(n>0?"+":n<0?"−":"")+money(Math.abs(n));
+const gamePlayers=g=>GAMES[g.type]?.sides?[...(g.t1||[]),...(g.t2||[])].filter(p=>p&&S.players[p]):(g.players||[]).filter(p=>p&&S.players[p]);
+function gameCtx(g){
+  const r=roundById(g.round),c=r?S.courses[r.course]:null,ready=courseReady(c),ps=gamePlayers(g),ph={};let est=false;
+  ps.forEach(p=>{const ch=courseHcp(p,c);est=est||ch.est;ph[p]=Math.round(ch.v*(num(g.allow)??100)/100)});
+  if(ps.length){const low=Math.min(...ps.map(p=>ph[p]));ps.forEach(p=>ph[p]-=low)}   // everyone plays off the low player
+  const par=h=>num(c.pars[h-1]),si=h=>num(c.si[h-1]);
+  const net=(p,h)=>{const v=cardVal(r.id,p,h);return v==null?null:v==="x"?"x":v-shotsOn(ph[p],si(h))};
+  return{r,c,ready,ps,ph,est,par,si,net};
+}
+// better net ball per side on a hole: 1 = side 1 wins, -1 = side 2, 0 = halved, null = not all in
+function sideResult(X,g,h){
+  const best=side=>{const ns=(g[side]||[]).filter(p=>S.players[p]).map(p=>X.net(p,h));if(!ns.length||ns.some(v=>v==null))return null;const n=ns.filter(v=>v!=="x");return n.length?Math.min(...n):Infinity};
+  const a=best("t1"),b=best("t2");if(a==null||b==null)return null;if(a===Infinity&&b===Infinity)return 0;return a<b?1:a>b?-1:0;
+}
+function computeGame(g){
+  const X=gameCtx(g),T=GAMES[g.type],stake=num(g.stake)||0,out={g,X,ok:false,why:"",lines:[],holes:[],money:{}};
+  if(!T){out.why="Unknown game.";return out}
+  if(!X.r){out.why="Pick a round.";return out}
+  if(!X.ready){out.why=`Starts once ${X.r.name} has pars and stroke indexes on Setup.`;return out}
+  const need=T.sides?((g.t1||[]).filter(Boolean).length&&(g.t2||[]).filter(Boolean).length):(X.ps.length>=(T.min||2));
+  if(!need){out.why="Pick the players.";return out}
+  if(g.type==="vegas"&&((g.t1||[]).filter(Boolean).length!==2||(g.t2||[]).filter(Boolean).length!==2)){out.why="Vegas needs two players on each side.";return out}
+  out.ok=true;const pay=(side,amt)=>{(g[side]||[]).filter(Boolean).forEach(p=>out.money[p]=(out.money[p]||0)+amt)};
+  if(g.type==="nassau"){
+    const at=num(g.pressAt)||2,bets=[{name:"Front 9",from:1,to:9,m:0,press:false,nine:true},{name:"Back 9",from:10,to:18,m:0,press:false,nine:true},{name:"Overall 18",from:1,to:18,m:0,press:false,nine:false}];
+    let thru=0;
+    for(let h=1;h<=18;h++){const res=sideResult(X,g,h);if(res==null)break;thru=h;out.holes.push({h,res});
+      for(const b of bets)if(h>=b.from&&h<=b.to)b.m+=res;
+      for(const b of [...bets])if(b.nine&&!b.press&&h>=b.from&&h<b.to&&Math.abs(b.m)>=at){b.press=true;
+        bets.push({name:`Press · ${b.to===9?"front":"back"} from ${h+1}`,from:h+1,to:b.to,m:0,press:false,nine:true,by:b.m>0?"t2":"t1"})}}
+    for(const b of bets){const done=thru>=b.to,started=thru>=b.from;
+      const lead=b.m>0?teamLabel(g,"t1"):b.m<0?teamLabel(g,"t2"):"";
+      const st=!started?"not started":b.m===0?(done?"halved":"all square"):done?`${lead} won, ${Math.abs(b.m)} up`:`${lead} ${Math.abs(b.m)} up`;
+      if(done&&b.m){pay(b.m>0?"t1":"t2",stake);pay(b.m>0?"t2":"t1",-stake)}
+      out.lines.push({name:b.name,text:st+(started&&!done?` · thru ${thru}`:""),done,win:b.m>0?"t1":b.m<0?"t2":""})}
+    out.status=thru?`Thru ${thru} · ${bets.length-3} press${bets.length-3===1?"":"es"}`:"Not started";
+  }
+  if(g.type==="hammer"){
+    let tot=0,thru=0;const H=g.ham||{};
+    for(let h=1;h<=18;h++){const x=H[h]||{},n=num(x.n)||0,v=stake*2**n;let d=null,res=null;
+      if(x.d&&n>0){d=x.d;const amt=stake*2**(n-1);tot+=d==="t1"?-amt:amt;out.holes.push({h,txt:`${teamLabel(g,d)} laid down · ${money(amt)}`});thru=h;continue}
+      res=sideResult(X,g,h);if(res==null){if(n)out.holes.push({h,txt:`${n} hammer${n>1?"s":""} · ${money(v)} · scores to come`});continue}
+      thru=h;tot+=res*v;out.holes.push({h,txt:res?`${teamLabel(g,res>0?"t1":"t2")} wins ${money(v)}${n?` (${n} hammer${n>1?"s":""})`:""}`:"Halved"});}
+    pay("t1",tot);pay("t2",-tot);out.status=thru?`Thru ${thru} · ${tot?`${teamLabel(g,tot>0?"t1":"t2")} up ${money(Math.abs(tot))}`:"even"}`:"Not started";
+  }
+  if(g.type==="vegas"){
+    let pts=0,thru=0;
+    const numFor=(side,h,flip)=>{const v=g[side].map(p=>{const n=X.net(p,h),cap=X.par(h)+2;return n==="x"?cap:Math.min(n,cap)}).sort((a,b)=>a-b);
+      let [lo,hi]=v;if(flip)[lo,hi]=[hi,lo];return Number(String(lo)+String(hi))};
+    for(let h=1;h<=18;h++){if([...g.t1,...g.t2].some(p=>X.net(p,h)==null))break;thru=h;
+      const bird=side=>g.flip!==false&&g[side].some(p=>{const v=cardVal(X.r.id,p,h);return v!=="x"&&v<=X.par(h)-1});
+      const b1=bird("t1"),b2=bird("t2"),f1=b2&&!b1,f2=b1&&!b2;
+      const A=numFor("t1",h,f1),B=numFor("t2",h,f2),d=B-A;pts+=d;
+      out.holes.push({h,txt:`${A}${f1?"↺":""} v ${B}${f2?"↺":""} · ${d?`${teamLabel(g,d>0?"t1":"t2")} +${Math.abs(d)}`:"push"}`})}
+    pay("t1",pts*stake);pay("t2",-pts*stake);
+    out.status=thru?`Thru ${thru} · ${pts?`${teamLabel(g,pts>0?"t1":"t2")} +${Math.abs(pts)} pts`:"even"}`:"Not started";
+  }
+  if(g.type==="nines"){
+    const ps=X.ps,P=ps.length===3?[5,3,1]:[5,3,1,0],tot={};ps.forEach(p=>tot[p]=0);let thru=0;
+    for(let h=1;h<=18;h++){const ns=ps.map(p=>({p,v:X.net(p,h)}));if(ns.some(x=>x.v==null))break;thru=h;
+      ns.forEach(x=>x.k=x.v==="x"?Infinity:x.v);ns.sort((a,b)=>a.k-b.k);
+      const got={};for(let i=0;i<ns.length;){let j=i;while(j+1<ns.length&&ns[j+1].k===ns[i].k)j++;const share=P.slice(i,j+1).reduce((a,b)=>a+b,0)/(j-i+1);for(let k=i;k<=j;k++)got[ns[k].p]=share;i=j+1}
+      ps.forEach(p=>tot[p]+=got[p]);out.holes.push({h,txt:ps.map(p=>`${shortName(p)} ${+got[p].toFixed(2)}`).join(" · ")})}
+    const T9=9*thru;ps.forEach(p=>out.money[p]=(ps.length*tot[p]-T9)*stake);out.pts=tot;
+    out.status=thru?`Thru ${thru} · `+ps.slice().sort((a,b)=>tot[b]-tot[a]).map(p=>`${shortName(p)} ${+tot[p].toFixed(1)}`).join(", "):"Not started";
+  }
+  return out;
+}
+function teamLabel(g,side){const ps=(g[side]||[]).filter(p=>S.players[p]);return ps.map(shortName).join(" + ")||(side==="t1"?"Side 1":"Side 2")}
+const gameList=round=>Object.values(S.games||{}).filter(g=>g.round===round).sort((a,b)=>(a.n||0)-(b.n||0));
+function gameTitle(g){const T=GAMES[g.type];if(!T)return"Game";return T.sides?`${T.label}: ${teamLabel(g,"t1")} v ${teamLabel(g,"t2")}`:`${T.label}: ${gamePlayers(g).map(shortName).join(", ")||"players TBD"}`}
+function renderGameList(r){
+  const gs=gameList(r.id);
+  let h=`<section class="sec"><div class="rhead"><h2>Side games</h2></div>`;
+  if(!gs.length)h+=`<p class="hint">No side games for this round yet.${S.readOnly?"":" Add Nassau, Nine-point, Hammer or Vegas below."}</p>`;
+  else h+=`<div class="mlist">${gs.map(g=>{const R=computeGame(g);const m=Object.entries(R.money).filter(([,v])=>v);
+    const lead=m.sort((x,y)=>y[1]-x[1])[0];
+    return`<button class="mrow" data-act="opengame" data-id="${esc(g.id)}"><span class="n num">$</span><span class="who"><b>${esc(gameTitle(g))}</b><div class="meta">${esc(R.ok?R.status:R.why)}${num(g.stake)?` · ${money(num(g.stake))}${g.type==="vegas"||g.type==="nines"?"/pt":g.type==="hammer"?"/hole":"/bet"}`:""}</div></span>${lead?`<span class="pill">${esc(shortName(lead[0]))} ${sgn(lead[1])}</span>`:""}</button>`}).join("")}</div>`;
+  if(!S.readOnly)h+=`<div class="chips" style="margin-top:8px">${Object.entries(GAMES).map(([k,v])=>`<button class="chip" data-act="addgame" data-type="${k}" data-round="${esc(r.id)}">+ ${v.label}</button>`).join("")}</div>`;
+  return h+`</section>`;
+}
+function renderGameSheet(el){
+  const g=S.games?.[S.openGame];if(!g){S.openGame=null;el.hidden=true;el.innerHTML="";return}
+  const T=GAMES[g.type],R=computeGame(g),dis=S.readOnly?"disabled":"";
+  const opts=sel=>`<option value="">—</option>`+Object.entries(S.players).sort((a,b)=>String(a[1].name).localeCompare(String(b[1].name))).map(([id,p])=>`<option value="${esc(id)}" ${id===sel?"selected":""}>${esc(p.name)}</option>`).join("");
+  let h=`<div class="sheet-in"><div class="sheet-top"><h2>${esc(T?.label||"Game")}</h2><button class="btn" data-act="gclose">Done</button></div>
+    <p class="hint" style="margin-top:-8px">${esc(T?.blurb||"")}</p>`;
+  if(T?.sides){const n=g.type==="vegas"?2:Math.max(1,Math.min(2,(g.t1||[]).length||1));
+    h+=`<section class="sec"><h3>Sides</h3><div class="card"><div class="field"><label for="gsz">Players per side</label><select id="gsz" data-g="size" ${dis||g.type==="vegas"?"disabled":""}><option value="1" ${n===1?"selected":""}>1 v 1</option><option value="2" ${n===2?"selected":""}>2 v 2</option></select></div>
+    <div class="grid2"><div class="field"><label>Side 1</label>${Array.from({length:n},(_,i)=>`<select data-g="t1:${i}" ${dis}>${opts((g.t1||[])[i])}</select>`).join("")}</div>
+    <div class="field"><label>Side 2</label>${Array.from({length:n},(_,i)=>`<select data-g="t2:${i}" ${dis}>${opts((g.t2||[])[i])}</select>`).join("")}</div></div></div></section>`}
+  else{const n=Math.max(3,Math.min(4,(g.players||[]).length||3));
+    h+=`<section class="sec"><h3>Players</h3><div class="card"><div class="field"><label for="gsz">How many</label><select id="gsz" data-g="size" ${dis}><option value="3" ${n===3?"selected":""}>3 (5-3-1)</option><option value="4" ${n===4?"selected":""}>4 (5-3-1-0)</option></select></div>
+    ${Array.from({length:n},(_,i)=>`<select data-g="p:${i}" ${dis} style="margin-top:6px">${opts((g.players||[])[i])}</select>`).join("")}</div></section>`}
+  h+=`<section class="sec"><h3>Settings</h3><div class="card"><div class="grid2"><div class="field"><label for="gst">Stake ${g.type==="vegas"||g.type==="nines"?"per point":g.type==="hammer"?"per hole":"per bet"} ($)</label><input id="gst" type="number" step="0.25" inputmode="decimal" value="${esc(g.stake??"")}" data-g="stake" ${dis}></div>
+    <div class="field"><label for="gal">Handicap %</label><input id="gal" type="number" inputmode="numeric" value="${esc(g.allow??100)}" data-g="allow" ${dis}></div></div>
+    ${g.type==="nassau"?`<div class="field"><label for="gpr">Automatic press when down</label><select id="gpr" data-g="pressAt" ${dis}>${[2,3].map(v=>`<option value="${v}" ${(num(g.pressAt)||2)===v?"selected":""}>${v} holes</option>`).join("")}</select></div>`:""}
+    ${g.type==="vegas"?`<div class="field"><label for="gfl">Birdie flips</label><select id="gfl" data-g="flip" ${dis}><option value="1" ${g.flip!==false?"selected":""}>On (gross birdie flips the other team)</option><option value="0" ${g.flip===false?"selected":""}>Off</option></select></div>`:""}
+    <p class="hint" style="margin:0">Everyone plays off the low player in this game.${R.X?.est?" Strokes are estimated until the course rating/slope are in.":""}</p></div></section>`;
+  if(g.type==="hammer"&&R.ok){const H=g.ham||{};
+    h+=`<section class="sec"><h3>Hammers by hole</h3><p class="hint">Tap + each time someone hammers. If the last hammer was turned down, pick who laid down.</p><div class="mlist">`;
+    for(let x=1;x<=18;x++){const e=H[x]||{},n=num(e.n)||0;
+      h+=`<div class="lv" style="border:0;border-bottom:1px solid var(--line);border-radius:0;gap:8px"><span><b class="num">${x}</b> <span class="hint">${money((num(g.stake)||0)*2**n)}</span></span>
+      <span style="display:flex;gap:6px;align-items:center"><span class="step" style="display:flex;gap:4px"><button data-act="ham" data-h="${x}" data-d="-1" ${dis} aria-label="One fewer hammer">−</button><span class="num" style="min-width:22px;text-align:center">${n}</span><button data-act="ham" data-h="${x}" data-d="1" ${dis} aria-label="Hammer">+</button></span>
+      <select data-g="ham:${x}" ${dis||!n?"disabled":""} aria-label="Laid down"><option value="">Played out</option><option value="t1" ${e.d==="t1"?"selected":""}>${esc(teamLabel(g,"t1"))} laid down</option><option value="t2" ${e.d==="t2"?"selected":""}>${esc(teamLabel(g,"t2"))} laid down</option></select></span></div>`}
+    h+=`</div></section>`}
+  if(R.ok){
+    if(R.lines.length)h+=`<section class="sec"><h3>Bets</h3><div class="mlist">${R.lines.map(l=>`<div class="lv" style="border:0;border-bottom:1px solid var(--line);border-radius:0"><span>${esc(l.name)}</span><span class="pill ${l.done&&l.win?"":""}">${esc(l.text)}</span></div>`).join("")}</div></section>`;
+    const m=Object.entries(R.money);
+    if(m.length)h+=`<section class="sec"><h3>Money</h3><div class="tbl"><table><tbody>${m.sort((a,b)=>b[1]-a[1]).map(([p,v])=>`<tr><td>${esc(S.players[p]?.name||"")}</td><td class="r num"><b>${sgn(v)}</b></td></tr>`).join("")}</tbody></table></div><p class="hint">${g.type==="nassau"?"Counts finished bets only. ":""}Each player settles their own amount.</p></section>`;
+    if(R.holes.length)h+=`<section class="sec"><h3>Hole by hole</h3><div class="mlist">${R.holes.map(x=>`<div class="lv" style="border:0;border-bottom:1px solid var(--line);border-radius:0"><b class="num">${x.h}</b><span class="hint">${esc(x.txt??(x.res>0?teamLabel(g,"t1"):x.res<0?teamLabel(g,"t2"):"Halved"))}</span></div>`).join("")}</div></section>`;
+  }else h+=`<div class="empty">${esc(R.why)}</div>`;
+  if(!S.readOnly)h+=`<section class="sec">${S.confirm==="g"+g.id?`<div class="banner">Delete this game? <button class="btn" data-act="delgame" data-id="${esc(g.id)}">Delete</button> <button class="btn" data-act="gcancel">Keep</button></div>`:`<button class="btn" data-act="gconfirm" data-id="${esc(g.id)}">Delete game</button>`}</section>`;
+  el.innerHTML=h+`</div>`;el.hidden=false;
+}
+function addGame(type,round){
+  const n=Math.max(0,...Object.values(S.games||{}).map(g=>num(g.n)||0))+1,id="g"+String(n).padStart(2,"0")+Date.now().toString(36).slice(-3);
+  const data={n,type,round,...GAME_DEFAULT[type],...(GAMES[type].sides?{t1:type==="vegas"?[null,null]:[null],t2:type==="vegas"?[null,null]:[null]}:{players:[null,null,null]})};
+  serial("games/"+id,()=>S.db.doc("games/"+id).set(data)).then(()=>{S.openGame=id;render()});
+}
+function gameChange(el){
+  const g=S.games?.[S.openGame];if(!g)return;const k=el.dataset.g,v=el.value,path="games/"+g.id;
+  if(k==="size"){const n=Number(v);if(GAMES[g.type].sides)updDoc(path,{t1:[...(g.t1||[]),null,null].slice(0,n),t2:[...(g.t2||[]),null,null].slice(0,n)});else updDoc(path,{players:[...(g.players||[]),null,null,null,null].slice(0,n)})}
+  else if(/^t[12]:/.test(k)){const [side,i]=k.split(":");const arr=[...(g[side]||[])];arr[+i]=v||null;updDoc(path,{[side]:arr})}
+  else if(k.startsWith("p:")){const arr=[...(g.players||[])];arr[+k.slice(2)]=v||null;updDoc(path,{players:arr})}
+  else if(k.startsWith("ham:")){const h=k.slice(4);updDoc(path,{ham:{[h]:{d:v}}})}
+  else if(k==="flip")updDoc(path,{flip:v==="1"});
+  else updDoc(path,{[k]:num(v)});
+}
+
 const yardUrl=()=>"../map/";
 function renderMap(){
   const r=roundById(S.scoreRound)||rounds()[0];
@@ -697,6 +837,7 @@ function renderMap(){
 
 function renderSheet(){
   const m=S.matches[S.openMatch];const el=$("#sheet");
+  if(!m&&S.openGame)return renderGameSheet(el);
   if(!m){el.hidden=true;el.innerHTML="";return}
   const res=computeMatch(m),f=FORMATS[m.format],r=roundById(m.round),dis=S.readOnly?"disabled":"";
   const side=f?f.side:2;
@@ -841,6 +982,13 @@ document.addEventListener("click",e=>{
     case"pu":{const v=cardVal(S.scoreRound,b.dataset.p,S.scoreHole);setScore(b.dataset.p,S.scoreHole,v==="x"?null:"x");break}
     case"open":S.openMatch=b.dataset.id;S.confirm=null;render();$("#sheet").scrollTop=0;break;
     case"close":S.openMatch=null;render();break;
+    case"addgame":addGame(b.dataset.type,b.dataset.round);break;
+    case"opengame":S.openGame=b.dataset.id;S.openMatch=null;S.confirm=null;render();$("#sheet").scrollTop=0;break;
+    case"gclose":S.openGame=null;S.confirm=null;render();break;
+    case"gconfirm":S.confirm="g"+b.dataset.id;render();break;
+    case"gcancel":S.confirm=null;render();break;
+    case"delgame":{const id=b.dataset.id;S.confirm=null;S.openGame=null;serial("games/"+id,()=>S.db.doc("games/"+id).delete());render();break}
+    case"ham":{const g=S.games?.[S.openGame];if(!g)break;const h=b.dataset.h,cur=num(g.ham?.[h]?.n)||0,n=Math.max(0,Math.min(6,cur+Number(b.dataset.d)));updDoc("games/"+g.id,{ham:{[h]:n?{n}:{n:0,d:""}}});break}
     case"manual":{const m=S.matches[S.openMatch];const w=b.dataset.w;updDoc("matches/"+m.id,{manual:w?{winner:w,score:m.manual?.score||""}:null});break}
     case"askdel":S.confirm=b.dataset.id;render();break;
     case"delplayer":{const id=b.dataset.id;S.confirm=null;serial("players/"+id,()=>S.db.doc("players/"+id).delete());break}
@@ -879,6 +1027,7 @@ document.addEventListener("change",e=>{
         serial("courses/"+id,()=>S.courses[id]?S.db.doc("courses/"+id).update({[field]:arr}):S.db.doc("courses/"+id).set({[field]:arr}))}
       else{const val=field==="tees"?v:num(v);serial("courses/"+id,()=>S.courses[id]?S.db.doc("courses/"+id).update({[field]:val}):S.db.doc("courses/"+id).set({[field]:val}))}
     }
+  }else if(el.dataset.g){gameChange(el);
   }else if(el.dataset.m){
     const m=S.matches[S.openMatch];if(!m)return;const k=el.dataset.m,v=el.value;
     if(k.startsWith("t1:")||k.startsWith("t2:")){const [side,i]=k.split(":");const arr=[...(m[side]||[])];arr[Number(i)]=v||null;
@@ -909,7 +1058,7 @@ function makeStore(sb){
     if(error)throw error;
     for(const k of Object.keys(cache))cache[k]={};
     data.forEach(r=>{const c=own(r.collection);if(c)put(c,r.id,r.data)});
-    ["setup","players","courses","matches","cards"].forEach(emit);
+    ["setup","players","courses","matches","cards","games"].forEach(emit);
   }
   async function rpc(c,id,d,mode){
     const {error}=await sb.rpc("write_doc",{p_pin:S.pin||"",p_collection:NS+c,p_id:id,p_data:d||{},p_mode:mode});
@@ -1132,7 +1281,7 @@ async function boot(){
   const mark=k=>{if(!S["_"+k]){S["_"+k]=1;S.loaded++}};
   db.doc("setup/main").onSnapshot(s=>{S.setup=s.exists?s.data():null;mark("setup");render()});
   const coll=(name,key)=>db.collection(name).onSnapshot(q=>{const o={};q.docs.forEach(d=>{o[d.id]={...d.data(),id:d.id}});S[key]=o;mark(key);render()});
-  coll("players","players");coll("courses","courses");coll("matches","matches");coll("cards","cards");
+  coll("players","players");coll("courses","courses");coll("matches","matches");coll("cards","cards");coll("games","games");
   db.listen(st=>{if(st==="SUBSCRIBED")setSync(S.readOnly?"View only":"Live",S.readOnly);else if(st==="CHANNEL_ERROR"||st==="TIMED_OUT")setSync("Reconnecting…",true)});
   try{await db.loadAll()}catch(e){S.err="Couldn't load the scoreboard. Check your connection and reload.";setSync("Offline",true);render();return}
   // phones sleep and drop the live connection: catch up whenever the app comes back
