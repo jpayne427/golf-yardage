@@ -615,12 +615,15 @@ function renderSetup(){
   }
   h+=`</section>`;
   const sk=skinCfg();
-  h+=`<section class="sec"><h2>Skins</h2><div class="card">
-    <div class="grid2"><div class="field"><label for="sk-allow">Allowance %</label><input id="sk-allow" type="number" inputmode="numeric" value="${esc(sk.allow)}" data-set="skins:allow" ${dis}></div>
+  h+=`<section class="sec"><h2>Trip-wide games</h2><div class="card">
+    <div class="grid2"><div class="field"><label for="sk-on">Trip skins</label><select id="sk-on" data-set="skins:on" ${dis}><option value="0" ${!sk.on?"selected":""}>Off</option><option value="1" ${sk.on?"selected":""}>On, everyone, every round</option></select></div>
+    <div class="field"><label for="ck-on">Choke index</label><select id="ck-on" data-set="choke:on" ${dis}><option value="0" ${!S.setup?.choke?"selected":""}>Off</option><option value="1" ${S.setup?.choke?"selected":""}>On, whole trip</option></select></div></div>
+    <p class="hint" style="margin:0">Smaller games for just one round or one group are added on the Games tab.</p>
+    ${sk.on?`<div class="grid2"><div class="field"><label for="sk-allow">Allowance %</label><input id="sk-allow" type="number" inputmode="numeric" value="${esc(sk.allow)}" data-set="skins:allow" ${dis}></div>
     <div class="field"><label for="sk-buy">Buy-in per player per round ($)</label><input id="sk-buy" type="number" inputmode="decimal" value="${esc(sk.buyin||"")}" placeholder="0" data-set="skins:buyin" ${dis}></div></div>
     <div class="grid2"><div class="field"><label for="sk-low">Strokes</label><select id="sk-low" data-set="skins:offLow" ${dis}><option value="0" ${!sk.offLow?"selected":""}>Full strokes</option><option value="1" ${sk.offLow?"selected":""}>Off the low player</option></select></div>
     <div class="field"><label for="sk-carry">Ties</label><select id="sk-carry" data-set="skins:carry" ${dis}><option value="1" ${sk.carry?"selected":""}>Carry over</option><option value="0" ${!sk.carry?"selected":""}>No skin, no carry</option></select></div></div>
-    <p class="hint">Everyone playing the round is in. Lowest net score on a hole wins it outright; picked-up holes can't win.</p></div></section>`;
+    <p class="hint">Everyone playing the round is in. Lowest net score on a hole wins it outright; picked-up holes can't win.</p>`:""}</div></section>`;
   h+=`<section class="sec"><h2>Event PIN</h2><div class="card">
     <p class="hint" style="margin:0">Change the PIN everyone uses to keep score in ${esc(S.setup?.name||"this event")}. Other events keep their own PINs. Needs the organizer PIN, which also unlocks every event. Other phones will be asked for the new PIN the next time they save something.</p>
     <div class="grid2"><div class="field"><label for="pin-admin">Organizer PIN</label><input id="pin-admin" type="password" autocomplete="off"></div>
@@ -634,7 +637,7 @@ function renderSetup(){
   return h;
 }
 
-const SKIN_DEFAULT={allow:100,offLow:false,carry:true,buyin:0};
+const SKIN_DEFAULT={allow:100,offLow:false,carry:true,buyin:0,on:false};
 const skinCfg=()=>({...SKIN_DEFAULT,...(S.setup?.skins||{})});
 const money=n=>"$"+(Math.round(n*100)/100).toFixed(n%1?2:0);
 function skinPlayers(round){
@@ -643,9 +646,9 @@ function skinPlayers(round){
   Object.values(S.cards).forEach(c=>{if(c.round===round&&S.players[c.pid]&&c.g&&Object.values(c.g).some(v=>v!=null))set.add(c.pid)});
   return [...set];
 }
-function computeSkins(round){
-  const cfg=skinCfg(),r=roundById(round),c=S.courses[r?.course];
-  const out={round,players:skinPlayers(round),holes:[],won:{},skins:0,carry:0,ready:courseReady(c),ph:{},est:false,done:0};
+function computeSkins(round,o){   // o: a per-round skins game's own players and settings; default is the trip-wide game
+  const cfg=o?{...SKIN_DEFAULT,...o}:skinCfg(),r=roundById(round),c=S.courses[r?.course];
+  const out={round,players:o?o.players.filter(p=>S.players[p]):skinPlayers(round),holes:[],won:{},skins:0,carry:0,ready:courseReady(c),ph:{},est:false,done:0};
   if(!out.ready||out.players.length<2)return out;
   out.players.forEach(p=>{const ch=courseHcp(p,c);out.est=out.est||ch.est;out.ph[p]=Math.round(ch.v*(num(cfg.allow)??100)/100)});
   if(cfg.offLow){const low=Math.min(...out.players.map(p=>out.ph[p]));out.players.forEach(p=>out.ph[p]-=low)}
@@ -673,8 +676,9 @@ function renderGames(){
   const cfg=skinCfg(),r=roundById(S.gameRound),K=computeSkins(r.id);
   let h=`<section class="sec"><div class="chips">${rs.map(x=>`<button class="chip" data-act="ground" data-id="${esc(x.id)}" aria-pressed="${x.id===r.id}">${esc(x.name)}<small>${esc(x.day)}</small></button>`).join("")}</div></section>`;
   h+=renderGameList(r);
-  const choke=renderChoke();
-  h+=`<section class="sec"><div class="rhead"><h2>Skins</h2><span class="hint">${num(cfg.allow)??100}% hcp${cfg.offLow?" off low":", full strokes"} · ${cfg.carry?"carryovers":"no carryovers"}${num(cfg.buyin)?` · ${money(num(cfg.buyin))} buy-in`:""}</span></div></section>`;
+  const choke=S.setup?.choke?renderChoke():"";
+  if(!cfg.on)return h+choke+(cfg.on||S.setup?.choke?"":`<p class="hint">Trip-wide skins and the choke index are off. Turn them on in Setup if the whole group is playing them.</p>`);
+  h+=`<section class="sec"><div class="rhead"><h2>Trip skins</h2><span class="hint">${num(cfg.allow)??100}% hcp${cfg.offLow?" off low":", full strokes"} · ${cfg.carry?"carryovers":"no carryovers"}${num(cfg.buyin)?` · ${money(num(cfg.buyin))} buy-in`:""}</span></div></section>`;
   if(!K.ready)return h+`<div class="empty">Skins start once ${esc(r.name)} has pars and stroke indexes on Setup.</div>`+choke;
   if(K.players.length<2)return h+`<div class="empty">Skins start once players are assigned to ${esc(r.name)} matches.</div>`+choke;
   const per=K.skins?K.pot/K.skins:0;
@@ -703,9 +707,10 @@ const GAMES={
   nassau:{label:"Nassau",sides:true,max:2,blurb:"Front 9, back 9 and overall 18 are separate bets (on other course lengths, the first half, second half and all holes). Better net ball per side. A new bet (press) starts automatically whenever a side goes down by the press number in a bet, and runs to the end of that nine."},
   nines:{label:"Nine-point",sides:false,min:3,max:4,blurb:"9 points a hole: best net score 5, second 3, third 1 (5-3-1-0 with four). Ties split the points. Settle on the point difference."},
   hammer:{label:"Hammer",sides:true,max:2,blurb:"Each hole is worth the stake. Either side can hammer to double it; the other side accepts or lays down and pays the value before the hammer. Record the hammers on each hole."},
+  skins:{label:"Skins",sides:false,min:2,max:8,blurb:"A skins game for just these players, just this round. Lowest net score on a hole wins it outright; ties carry over if you choose. The pot is everyone's buy-in, split by skins won."},
   vegas:{label:"Vegas",sides:true,min:2,max:2,blurb:"Each team's two net scores make a number, low score first (4 and 5 = 45). A gross birdie flips the other team's number (45 becomes 54). Pay the difference per point. Scores are capped at net double bogey."}
 };
-const GAME_DEFAULT={nassau:{stake:5,pressAt:2,allow:100},nines:{stake:1,allow:100},hammer:{stake:1,allow:100},vegas:{stake:0.25,allow:100,flip:true}};
+const GAME_DEFAULT={skins:{stake:5,allow:100,offLow:false,carry:true},nassau:{stake:5,pressAt:2,allow:100},nines:{stake:1,allow:100},hammer:{stake:1,allow:100},vegas:{stake:0.25,allow:100,flip:true}};
 const sgn=n=>(n>0?"+":n<0?"−":"")+money(Math.abs(n));
 const gamePlayers=g=>GAMES[g.type]?.sides?[...(g.t1||[]),...(g.t2||[])].filter(p=>p&&S.players[p]):(g.players||[]).filter(p=>p&&S.players[p]);
 function gameCtx(g){
@@ -765,6 +770,12 @@ function computeGame(g){
     pay("t1",pts*stake);pay("t2",-pts*stake);
     out.status=thru?`Thru ${thru} · ${pts?`${teamLabel(g,pts>0?"t1":"t2")} +${Math.abs(pts)} pts`:"even"}`:"Not started";
   }
+  if(g.type==="skins"){
+    const K=computeSkins(g.round,{players:X.ps,allow:num(g.allow)??100,offLow:!!g.offLow,carry:g.carry!==false,buyin:stake}),per=K.skins?K.pot/K.skins:0,fin=K.done===X.N;
+    X.ps.forEach(p=>out.money[p]=(K.won[p]||0)*per-(fin?stake:0));out.final=fin;out.ph=K.ph;
+    K.holes.forEach(x=>{if(x.state!=="open")out.holes.push({h:x.h,txt:x.state==="won"?`${shortName(x.winner)} · net ${x.net}${x.value>1?` · ${x.value} skins`:""}`:`${x.net==null?"All picked up":`Tied at net ${x.net}`}${g.carry!==false?" · carries":""}`})});
+    out.status=K.done?`Thru ${K.done} · ${K.skins} skin${K.skins===1?"":"s"} won${K.carry?` · ${K.carry} carrying`:""}${K.pot?` · ${money(per)}/skin`:""}`:"Not started";
+  }
   if(g.type==="nines"){
     const ps=X.ps,P=ps.length===3?[5,3,1]:[5,3,1,0],tot={};ps.forEach(p=>tot[p]=0);let thru=0;
     for(let h=1;h<=X.N;h++){const ns=ps.map(p=>({p,v:X.net(p,h)}));if(ns.some(x=>x.v==null))break;thru=h;
@@ -782,10 +793,10 @@ function gameTitle(g){const T=GAMES[g.type];if(!T)return"Game";return T.sides?`$
 function renderGameList(r){
   const gs=gameList(r.id);
   let h=`<section class="sec"><div class="rhead"><h2>Side games</h2></div>`;
-  if(!gs.length)h+=`<p class="hint">No side games for this round yet.${S.readOnly?"":" Add Nassau, Nine-point, Hammer or Vegas below."}</p>`;
+  if(!gs.length)h+=`<p class="hint">No side games for this round yet.${S.readOnly?"":" Add one below for whoever's playing it."}</p>`;
   else h+=`<div class="mlist">${gs.map(g=>{const R=computeGame(g);const m=Object.entries(R.money).filter(([,v])=>v);
     const lead=m.sort((x,y)=>y[1]-x[1])[0];
-    return`<button class="mrow" data-act="opengame" data-id="${esc(g.id)}"><span class="n num">$</span><span class="who"><b>${esc(gameTitle(g))}</b><div class="meta">${esc(R.ok?R.status:R.why)}${num(g.stake)?` · ${money(num(g.stake))}${g.type==="vegas"||g.type==="nines"?"/pt":g.type==="hammer"?"/hole":"/bet"}`:""}</div></span>${lead?`<span class="pill">${esc(shortName(lead[0]))} ${sgn(lead[1])}</span>`:""}</button>`}).join("")}</div>`;
+    return`<button class="mrow" data-act="opengame" data-id="${esc(g.id)}"><span class="n num">$</span><span class="who"><b>${esc(gameTitle(g))}</b><div class="meta">${esc(R.ok?R.status:R.why)}${num(g.stake)?` · ${money(num(g.stake))}${g.type==="vegas"||g.type==="nines"?"/pt":g.type==="hammer"?"/hole":g.type==="skins"?" buy-in":"/bet"}`:""}</div></span>${lead?`<span class="pill">${esc(shortName(lead[0]))} ${sgn(lead[1])}</span>`:""}</button>`}).join("")}</div>`;
   if(!S.readOnly)h+=`<div class="chips" style="margin-top:8px">${Object.entries(GAMES).map(([k,v])=>`<button class="chip" data-act="addgame" data-type="${k}" data-round="${esc(r.id)}">+ ${v.label}</button>`).join("")}</div>`;
   return h+`</section>`;
 }
@@ -799,14 +810,16 @@ function renderGameSheet(el){
     h+=`<section class="sec"><h3>Sides</h3><div class="card"><div class="field"><label for="gsz">Players per side</label><select id="gsz" data-g="size" ${dis||g.type==="vegas"?"disabled":""}><option value="1" ${n===1?"selected":""}>1 v 1</option><option value="2" ${n===2?"selected":""}>2 v 2</option></select></div>
     <div class="grid2"><div class="field"><label>Side 1</label>${Array.from({length:n},(_,i)=>`<select data-g="t1:${i}" ${dis}>${opts((g.t1||[])[i])}</select>`).join("")}</div>
     <div class="field"><label>Side 2</label>${Array.from({length:n},(_,i)=>`<select data-g="t2:${i}" ${dis}>${opts((g.t2||[])[i])}</select>`).join("")}</div></div></div></section>`}
-  else{const n=Math.max(3,Math.min(4,(g.players||[]).length||3));
-    h+=`<section class="sec"><h3>Players</h3><div class="card"><div class="field"><label for="gsz">How many</label><select id="gsz" data-g="size" ${dis}><option value="3" ${n===3?"selected":""}>3 (5-3-1)</option><option value="4" ${n===4?"selected":""}>4 (5-3-1-0)</option></select></div>
+  else{const lo=T.min||2,hi=T.max||8,n=Math.max(lo,Math.min(hi,(g.players||[]).length||lo));
+    h+=`<section class="sec"><h3>Players</h3><div class="card"><div class="field"><label for="gsz">How many</label><select id="gsz" data-g="size" ${dis}>${Array.from({length:hi-lo+1},(_,i)=>lo+i).map(k=>`<option value="${k}" ${n===k?"selected":""}>${k}${g.type==="nines"?(k===3?" (5-3-1)":" (5-3-1-0)"):""}</option>`).join("")}</select></div>
     ${Array.from({length:n},(_,i)=>`<select data-g="p:${i}" ${dis} style="margin-top:6px">${opts((g.players||[])[i])}</select>`).join("")}</div></section>`}
-  h+=`<section class="sec"><h3>Settings</h3><div class="card"><div class="grid2"><div class="field"><label for="gst">Stake ${g.type==="vegas"||g.type==="nines"?"per point":g.type==="hammer"?"per hole":"per bet"} ($)</label><input id="gst" type="number" step="0.25" inputmode="decimal" value="${esc(g.stake??"")}" data-g="stake" ${dis}></div>
+  h+=`<section class="sec"><h3>Settings</h3><div class="card"><div class="grid2"><div class="field"><label for="gst">${g.type==="skins"?"Buy-in per player":`Stake ${g.type==="vegas"||g.type==="nines"?"per point":g.type==="hammer"?"per hole":"per bet"}`} ($)</label><input id="gst" type="number" step="0.25" inputmode="decimal" value="${esc(g.stake??"")}" data-g="stake" ${dis}></div>
     <div class="field"><label for="gal">Handicap %</label><input id="gal" type="number" inputmode="numeric" value="${esc(g.allow??100)}" data-g="allow" ${dis}></div></div>
     ${g.type==="nassau"?`<div class="field"><label for="gpr">Automatic press when down</label><select id="gpr" data-g="pressAt" ${dis}>${[2,3].map(v=>`<option value="${v}" ${(num(g.pressAt)||2)===v?"selected":""}>${v} holes</option>`).join("")}</select></div>`:""}
+    ${g.type==="skins"?`<div class="grid2"><div class="field"><label for="gol">Strokes</label><select id="gol" data-g="offLow" ${dis}><option value="0" ${!g.offLow?"selected":""}>Full strokes</option><option value="1" ${g.offLow?"selected":""}>Off the low player</option></select></div>
+    <div class="field"><label for="gca">Ties</label><select id="gca" data-g="carry" ${dis}><option value="1" ${g.carry!==false?"selected":""}>Carry over</option><option value="0" ${g.carry===false?"selected":""}>No skin, no carry</option></select></div></div>`:""}
     ${g.type==="vegas"?`<div class="field"><label for="gfl">Birdie flips</label><select id="gfl" data-g="flip" ${dis}><option value="1" ${g.flip!==false?"selected":""}>On (gross birdie flips the other team)</option><option value="0" ${g.flip===false?"selected":""}>Off</option></select></div>`:""}
-    <p class="hint" style="margin:0">Everyone plays off the low player in this game.${R.X?.est?" Strokes are estimated until the course rating/slope are in.":""}</p></div></section>`;
+    <p class="hint" style="margin:0">${g.type==="skins"?"":"Everyone plays off the low player in this game."}${R.X?.est?" Strokes are estimated until the course rating/slope are in.":""}</p></div></section>`;
   if(g.type==="hammer"&&R.ok){const H=g.ham||{};
     h+=`<section class="sec"><h3>Hammers by hole</h3><p class="hint">Tap + each time someone hammers. If the last hammer was turned down, pick who laid down.</p><div class="mlist">`;
     for(let x=1;x<=R.X.N;x++){const e=H[x]||{},n=num(e.n)||0;
@@ -817,7 +830,7 @@ function renderGameSheet(el){
   if(R.ok){
     if(R.lines.length)h+=`<section class="sec"><h3>Bets</h3><div class="mlist">${R.lines.map(l=>`<div class="lv" style="border:0;border-bottom:1px solid var(--line);border-radius:0"><span>${esc(l.name)}</span><span class="pill ${l.done&&l.win?"":""}">${esc(l.text)}</span></div>`).join("")}</div></section>`;
     const m=Object.entries(R.money);
-    if(m.length)h+=`<section class="sec"><h3>Money</h3><div class="tbl"><table><tbody>${m.sort((a,b)=>b[1]-a[1]).map(([p,v])=>`<tr><td>${esc(S.players[p]?.name||"")}</td><td class="r num"><b>${sgn(v)}</b></td></tr>`).join("")}</tbody></table></div><p class="hint">${g.type==="nassau"?"Counts finished bets only. ":""}Each player settles their own amount.</p></section>`;
+    if(m.length)h+=`<section class="sec"><h3>Money</h3><div class="tbl"><table><tbody>${m.sort((a,b)=>b[1]-a[1]).map(([p,v])=>`<tr><td>${esc(S.players[p]?.name||"")}</td><td class="r num"><b>${sgn(v)}</b></td></tr>`).join("")}</tbody></table></div><p class="hint">${g.type==="nassau"?"Counts finished bets only. ":g.type==="skins"?(R.final?"Winnings minus the buy-in. ":"Winnings so far; buy-ins come off when the round is done. "):""}Each player settles their own amount.</p></section>`;
     if(R.holes.length)h+=`<section class="sec"><h3>Hole by hole</h3><div class="mlist">${R.holes.map(x=>`<div class="lv" style="border:0;border-bottom:1px solid var(--line);border-radius:0"><b class="num">${x.h}</b><span class="hint">${esc(x.txt??(x.res>0?teamLabel(g,"t1"):x.res<0?teamLabel(g,"t2"):"Halved"))}</span></div>`).join("")}</div></section>`;
   }else h+=`<div class="empty">${esc(R.why)}</div>`;
   if(!S.readOnly)h+=`<section class="sec">${S.confirm==="g"+g.id?`<div class="banner">Delete this game? <button class="btn" data-act="delgame" data-id="${esc(g.id)}">Delete</button> <button class="btn" data-act="gcancel">Keep</button></div>`:`<button class="btn" data-act="gconfirm" data-id="${esc(g.id)}">Delete game</button>`}</section>`;
@@ -825,7 +838,7 @@ function renderGameSheet(el){
 }
 function addGame(type,round){
   const n=Math.max(0,...Object.values(S.games||{}).map(g=>num(g.n)||0))+1,id="g"+String(n).padStart(2,"0")+Date.now().toString(36).slice(-3);
-  const data={n,type,round,...GAME_DEFAULT[type],...(GAMES[type].sides?{t1:type==="vegas"?[null,null]:[null],t2:type==="vegas"?[null,null]:[null]}:{players:[null,null,null]})};
+  const data={n,type,round,...GAME_DEFAULT[type],...(GAMES[type].sides?{t1:type==="vegas"?[null,null]:[null],t2:type==="vegas"?[null,null]:[null]}:{players:type==="skins"?(skinPlayers(round).length>=2?skinPlayers(round).slice(0,8):[null,null]):[null,null,null]})};
   serial("games/"+id,()=>S.db.doc("games/"+id).set(data)).then(()=>{S.openGame=id;render()});
 }
 function gameChange(el){
@@ -835,6 +848,7 @@ function gameChange(el){
   else if(k.startsWith("p:")){const arr=[...(g.players||[])];arr[+k.slice(2)]=v||null;updDoc(path,{players:arr})}
   else if(k.startsWith("ham:")){const h=k.slice(4);updDoc(path,{ham:{[h]:{d:v}}})}
   else if(k==="flip")updDoc(path,{flip:v==="1"});
+  else if(k==="offLow"||k==="carry")updDoc(path,{[k]:v==="1"});
   else updDoc(path,{[k]:num(v)});
 }
 
@@ -1057,7 +1071,8 @@ document.addEventListener("change",e=>{
   if(el.dataset.set){
     const [kind,id,field,hole]=el.dataset.set.split(":");const v=el.value;
     if(kind==="team")updDoc("setup/main",{teams:{[id]:{name:v.trim()||(id==="t1"?"Team 1":"Team 2")}}});
-    else if(kind==="skins")updDoc("setup/main",{skins:{[id]:id==="offLow"||id==="carry"?v==="1":id==="allow"?(num(v)??100):(num(v)||0)}});
+    else if(kind==="skins")updDoc("setup/main",{skins:{[id]:id==="offLow"||id==="carry"||id==="on"?v==="1":id==="allow"?(num(v)??100):(num(v)||0)}});
+    else if(kind==="choke")updDoc("setup/main",{choke:v==="1"});
     else if(kind==="allow")updDoc("setup/main",{allowances:{[id]:num(v)??DEFAULT_ALLOW[id]}});
     else if(kind==="player")updDoc("players/"+id,{[field]:field==="index"?num(v):field==="name"?v.trim():v});
     else if(kind==="teesel"){
