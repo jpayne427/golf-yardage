@@ -155,8 +155,9 @@ const COURSES=[
   {id:"pacific",name:"Pacific Dunes"},
   {id:"redtail",name:"RedTail (Portland)"},
   {id:"crossings",name:"Bandon Crossings"},
-  {id:"shortys",name:"Shorty's (Bandon Dunes)"}
+  {id:"shortys",name:"Shorty's (Bandon Dunes)",holes:19}
 ];
+const nHoles=()=>COURSES.find(c=>c.id===st.course)?.holes||18;
 const RESORT=[43.196,-124.392];          // roughly the middle of the resort
 const BATTLE_URL="../";   // ShipStiffs home (all events)
 const EMBEDDED=window.top!==window.self;   // running inside the Battle app's Map tab
@@ -244,7 +245,7 @@ map.on("click",e=>{
     const g={...(st.local[key()]||st.shared[key()]||{})};delete g.src;if(!g.T&&st.shared[key()]?.T)g.T=st.shared[key()].T;g[k]=[+p[0].toFixed(6),+p[1].toFixed(6)];
     st.local[key()]=g;store.set("greens.local",st.local);
     st.markStep++;
-    if(st.markStep>2){st.markStep=0;if(st.hole<18){st.hole++;saveNav();flyToHole()}else stopMarking()}
+    if(st.markStep>2){st.markStep=0;if(st.hole<nHoles()){st.hole++;saveNav();flyToHole()}else stopMarking()}
     draw();return;
   }
   if(st.pins.length>=(st.me?2:3))st.pins=[];
@@ -256,8 +257,8 @@ $("menubtn").onclick=()=>{$("menu").hidden=false};
 $("menuclose").onclick=()=>{$("menu").hidden=true};
 $("menu").onclick=e=>{if(e.target.id==="menu")$("menu").hidden=true};
 $("markbtn").onclick=()=>{$("menu").hidden=true;st.marking=true;st.markStep=0;st.pins=[];flyToHole();draw()};
-$("prev").onclick=()=>{st.hole=st.hole<=1?18:st.hole-1;st.markStep=0;st.pins=[];saveNav();flyToHole();draw()};
-$("next").onclick=()=>{st.hole=st.hole>=18?1:st.hole+1;st.markStep=0;st.pins=[];saveNav();flyToHole();draw()};
+$("prev").onclick=()=>{st.hole=st.hole<=1?nHoles():st.hole-1;st.markStep=0;st.pins=[];saveNav();flyToHole();draw()};
+$("next").onclick=()=>{st.hole=st.hole>=nHoles()?1:st.hole+1;st.markStep=0;st.pins=[];saveNav();flyToHole();draw()};
 $("course").onchange=e=>{st.course=e.target.value;st.hole=1;st.pins=[];saveNav();flyToHole();draw()};
 $("locate").onclick=()=>{if(st.me)map.setView(st.me,Math.max(map.getZoom(),17));else startGps(true)};
 $("togreen").onclick=()=>flyToHole();
@@ -307,7 +308,7 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
 /* ---- boot ---- */
 $("course").innerHTML=COURSES.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
 const nav=store.get("nav");if(nav&&COURSES.some(c=>c.id===nav.course)){st.course=nav.course;st.hole=nav.hole||1}
-const m=location.hash.match(/^#([a-z]+)-(\d{1,2})$/);if(m&&COURSES.some(c=>c.id===m[1])){st.course=m[1];st.hole=Math.min(18,Math.max(1,+m[2]))}
+const m=location.hash.match(/^#([a-z]+)-(\d{1,2})$/);if(m&&COURSES.some(c=>c.id===m[1])){st.course=m[1];st.hole=Math.min(COURSES.find(c=>c.id===m[1]).holes||18,Math.max(1,+m[2]))}
 window.addEventListener("hashchange",()=>{const m=location.hash.match(/^#([a-z]+)-(\d{1,2})$/);if(m&&COURSES.some(c=>c.id===m[1])){st.course=m[1];st.hole=+m[2];st.pins=[];flyToHole();draw()}});
 $("back").href=BATTLE_URL;if(EMBEDDED){$("back").hidden=true;document.documentElement.style.setProperty("--top","10px");document.documentElement.style.setProperty("--bot","12px")}
 loadShared().then(()=>flyToHole());
