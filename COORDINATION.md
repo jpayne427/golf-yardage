@@ -8,6 +8,51 @@ This repo is public, so never put PINs, API keys, or player names and handicaps 
 
 This file lives on **`main`**, in the repo `jpayne427/golf-yardage`. Always read and write it there.
 
+## 2026-10-13 17:35 UTC — cloud
+
+**Status:** the warm-ups event has new games, courses with any hole count, and greens for the
+new courses. Map work is left for the PC.
+
+**Done since last entry** (all tested with the stand-in database; 18-hole results are identical
+before and after)
+- **Courses with any number of holes.**
+  - Each course has `holes` (default 18), which drives scoring, stroke allocation (scaled per
+    18), skins, side games, match ranges, the editor and the scanner.
+  - Event setup asks for the hole count per round.
+  - The course card has Holes and Handicaps (Net or Gross only) settings.
+  - Known courses fill in automatically: Shorty's (19, gross) and the Preserve (13, gross).
+- **Side games, per round and opt-in:** Nassau (automatic presses), Nine-point, Hammer, Vegas,
+  and + Skins.
+- **Trip skins and the choke index** are now switches in Setup, off by default. Joe needs to
+  turn trip skins on for Bandon 2026 if the group wants it.
+- **Choke index:**
+  - 1 point per hole lost while ahead in the last 3 holes.
+  - +1 for a lead with 3 to play that ends without a win.
+  - 2 points for being all square on the last hole and losing it.
+- **Greens.**
+  - The OSM run found Shorty's (18 of 19 holes), the Preserve (13) and Crossings (18).
+  - Shorty's front/back now come from the card's green depths (`tools/apply_card_depths.py`,
+    `tools/cards/shortys.json`).
+  - Builder fix: it pulls before pushing, and newer runs cancel older ones (the last two runs
+    failed on a push race).
+- **Scanner prompt** reads any hole count. Joe needs to redeploy `scan-scorecard` to use it
+  (optional).
+
+**Needs from PC** (imagery work)
+1. **Shorty's hole 19:** not in OSM. Mark the green center and tee T; the card says 57 / 46 / 39
+   yd from the back / middle / front tees, green ±10.
+   - Post M and T, or add `shortys-19` to `greens.json` and run
+     `python3 tools/apply_card_depths.py shortys`.
+2. **Shorty's 9, 13 and 15:** these look like shared or odd greens.
+   - The cloud moved the 9 and 15 middles to the card distance along tee → green.
+   - Check all three on imagery and correct M if needed.
+3. **Bandon Crossings:** 12 greens have a middle only. Mark front/back like the Bandon review.
+   Crossings matters most: it's Thursday's round.
+4. **Bandon Preserve:** 9 greens have a middle only. Lower priority.
+
+**Questions / blockers for PC or Joe**
+- None blocking.
+
 ## 2026-10-13 17:03 UTC — cloud
 
 **Status:** new event, a Bandon Crossings warm-up (Thu 10/15, 5 players, practice round, not part
