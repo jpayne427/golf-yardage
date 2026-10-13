@@ -869,24 +869,36 @@ function resolveCourse(name){
   const t=name.trim().toLowerCase(),hit=Object.entries(S.courses).find(([,c])=>String(c.name||"").trim().toLowerCase()===t);
   return hit?hit[0]:courseId(name);
 }
-function roundDraft(r){return r?{id:r.id,course:S.courses[r.course]?.name||r.name,orig:S.courses[r.course]?.name||r.name,origCid:r.course,day:r.day||"",players:roundPlayers(r),hsel:"18",holesn:""}
-  :{id:null,course:"",day:"",players:[],hsel:"18",holesn:""}}
-function rdHoles(){ // the holes line under the course, updated in place while typing
+// courses to pick from: ones with a card here, ones we know, and this event's planned ones
+function courseChoices(extra){
+  const m=new Map();
+  Object.entries(S.courses).forEach(([id,c])=>m.set(id,c.name||id));
+  Object.entries(KNOWN_COURSES).forEach(([id,k])=>{if(!m.has(id))m.set(id,k.name)});
+  (NEW_EVENT_DEFAULTS[EVENT]?.rounds||[]).forEach(x=>{const id=courseId(x.course);if(!m.has(id))m.set(id,x.course)});
+  if(extra&&!m.has(extra.course))m.set(extra.course,extra.name);
+  return [...m].sort((a,b)=>String(a[1]).localeCompare(String(b[1])));
+}
+function roundDraft(r){return r?{id:r.id,csel:r.course,course:"",day:r.day||"",players:[...new Set(groupsFor(r.id).flatMap(G=>[...G.t1,...G.t2]))],hsel:"18",holesn:""}
+  :{id:null,csel:courseChoices().length?"":"__new",course:"",day:"",players:[],hsel:"18",holesn:""}}
+const rdCid=d=>d.csel==="__new"?(d.course.trim()?resolveCourse(d.course):""):d.csel;
+function rdHoles(){ // the new-course fields and the holes line, updated in place
   const d=S.rd,el=$("#rd-holes");if(!d||!el)return;
-  const name=d.course.trim(),cid=name&&!(d.id&&name===d.orig)?resolveCourse(name):d.origCid,have=cid&&S.courses[cid],kn=cid&&KNOWN_COURSES[cid];
-  const known=have||kn,box=$("#rd-hbox");
-  if(box)box.hidden=!!known||!name;
-  el.textContent=!name?"":have?`${have.name||name}: ${nHoles(have)} holes, card on file${have.gross?", played gross":""}.`:kn?`${kn.name}: ${kn.holes} holes, ${kn.gross?"played gross":"net"}. Course card filled in for you.`:"New course. Scan its card on Setup after you add the round.";
+  const isNew=d.csel==="__new",name=isNew?d.course.trim():"",cid=rdCid(d),have=cid&&S.courses[cid],kn=cid&&KNOWN_COURSES[cid];
+  const nb=$("#rd-newbox"),box=$("#rd-hbox");
+  if(nb)nb.hidden=!isNew;
+  if(box)box.hidden=!isNew||!!have||!!kn;
+  el.textContent=!cid?"":have?`${have.name||name}: ${nHoles(have)} holes, card on file${have.gross?", played gross":""}.`:kn?`${kn.name}: ${kn.holes} holes, ${kn.gross?"played gross":"net"}. Course card filled in for you.`:isNew?"New course. Scan its card on Setup after you add the round.":`${S.courses[cid]?.name||cid}: card not on file yet. Scan it on Setup.`;
 }
 function renderRoundSheet(el){
   const d=S.rd,dis=S.readOnly?"disabled":"",r=d.id&&(roundById(d.id)||d.saved);
-  const names=[...new Set([...Object.values(S.courses).map(c=>c.name),...Object.values(KNOWN_COURSES).map(k=>k.name),...(NEW_EVENT_DEFAULTS[EVENT]?.rounds||[]).map(x=>x.course)].filter(Boolean))];
+  const choices=courseChoices(r);
   const pl=Object.entries(S.players).sort((a,b)=>String(a[1].name).localeCompare(String(b[1].name)));
   const other=d.hsel==="other";
   let h=`<div class="sheet-in"><div class="sheet-top"><h2>${r?esc(r.name):"Add a round"}</h2><button class="btn" data-act="rdclose">${r?"Done":"Cancel"}</button></div>
     <section class="sec"><div class="card">
-      <div class="field"><label for="rd-course">Course</label><input id="rd-course" type="text" list="rd-courses" placeholder="Type or pick a course" value="${esc(d.course)}" data-rd="course" ${dis}><datalist id="rd-courses">${names.map(n=>`<option value="${esc(n)}">`).join("")}</datalist></div>
-      <div id="rd-hbox" class="grid2" ${r?"hidden":""}><div class="field"><label for="rd-hsel">Holes on this course</label><select id="rd-hsel" data-rd="hsel" ${dis}><option value="18" ${d.hsel==="18"?"selected":""}>18 holes</option><option value="9" ${d.hsel==="9"?"selected":""}>9 holes</option><option value="other" ${other?"selected":""}>Other…</option></select></div>
+      <div class="field"><label for="rd-csel">Course</label><select id="rd-csel" data-rd="csel" ${dis}>${d.csel===""?`<option value="" selected disabled>Pick a course</option>`:""}${choices.map(([id,n])=>`<option value="${esc(id)}" ${d.csel===id?"selected":""}>${esc(n)}</option>`).join("")}<option value="__new" ${d.csel==="__new"?"selected":""}>+ A different course…</option></select></div>
+      <div id="rd-newbox" hidden><div class="field"><label for="rd-course">Course name</label><input id="rd-course" type="text" placeholder="e.g. Bandon Crossings" value="${esc(d.course)}" data-rd="course" ${dis}></div></div>
+      <div id="rd-hbox" class="grid2" hidden><div class="field"><label for="rd-hsel">Holes on this course</label><select id="rd-hsel" data-rd="hsel" ${dis}><option value="18" ${d.hsel==="18"?"selected":""}>18 holes</option><option value="9" ${d.hsel==="9"?"selected":""}>9 holes</option><option value="other" ${other?"selected":""}>Other…</option></select></div>
         <div class="field" id="rd-hnf" ${other?"":"hidden"}><label for="rd-hn">How many</label><input id="rd-hn" type="number" inputmode="numeric" min="1" max="36" value="${esc(d.holesn)}" data-rd="holesn" ${dis}></div></div>
       <p class="hint" id="rd-holes" style="margin:0"></p>
       <div class="field"><label for="rd-day">Day &amp; time</label><input id="rd-day" type="text" placeholder="Thu 10/15 · 9:00 AM" value="${esc(d.day)}" data-rd="day" ${dis}></div>
@@ -905,8 +917,8 @@ function renderRoundSheet(el){
 }
 async function saveRound(){
   const d=S.rd;if(!d||S.readOnly)return;
-  const name=d.course.trim();if(!name){toast("Pick a course first.");$("#rd-course")?.focus();return}
-  const cid=d.id&&name===d.orig?d.origCid:resolveCourse(name),have=S.courses[cid],kn=KNOWN_COURSES[cid];
+  const cid=rdCid(d);if(!cid){toast(d.csel==="__new"?"Type the course name first.":"Pick a course first.");(d.csel==="__new"?$("#rd-course"):$("#rd-csel"))?.focus();return}
+  const name=d.csel==="__new"?d.course.trim():(courseChoices(roundById(d.id)).find(x=>x[0]===cid)?.[1]||cid),have=S.courses[cid],kn=KNOWN_COURSES[cid];
   const holes=have?nHoles(have):kn?kn.holes:Math.min(36,Math.max(1,Math.round((d.hsel==="other"?num(d.holesn):num(d.hsel))||18)));
   const players=Object.keys(S.players).filter(p=>d.players.includes(p));
   const rs=rounds().map(x=>({...x}));let r=d.id&&rs.find(x=>x.id===d.id);
@@ -921,6 +933,7 @@ async function saveRound(){
 }
 document.addEventListener("input",e=>{const k=e.target.dataset?.rd;if(!k||!S.rd)return;S.rd[k]=e.target.value;if(k==="course")rdHoles()});
 document.addEventListener("change",e=>{const ds=e.target.dataset||{};if(!S.rd)return;
+  if(ds.rd==="csel"){S.rd.csel=e.target.value;rdHoles();if(e.target.value==="__new")setTimeout(()=>$("#rd-course")?.focus(),30)}
   if(ds.rd==="hsel"){S.rd.hsel=e.target.value;const f=$("#rd-hnf");if(f)f.hidden=e.target.value!=="other";if(e.target.value==="other"&&!S.rd.holesn){S.rd.holesn="12";$("#rd-hn").value="12"}}
   if(ds.rdp){const id=ds.rdp,on=e.target.checked,ps=S.rd.players.filter(p=>p!==id);if(on)ps.push(id);S.rd.players=ps}});
 
@@ -1116,7 +1129,7 @@ document.addEventListener("click",e=>{
     case"open":S.openMatch=b.dataset.id;S.confirm=null;render();$("#sheet").scrollTop=0;break;
     case"close":S.openMatch=null;render();break;
     case"addgame":addGame(b.dataset.type,b.dataset.round);break;
-    case"addround":S.rd=roundDraft(null);S.openMatch=null;S.openGame=null;render();$("#sheet").scrollTop=0;setTimeout(()=>$("#rd-course")?.focus(),50);break;
+    case"addround":S.rd=roundDraft(null);S.openMatch=null;S.openGame=null;render();$("#sheet").scrollTop=0;break;
     case"editround":S.rd=roundDraft(roundById(b.dataset.id));S.openMatch=null;S.openGame=null;render();$("#sheet").scrollTop=0;break;
     case"rdclose":S.rd=null;S.confirm=null;render();break;
     case"rdsave":saveRound();break;
