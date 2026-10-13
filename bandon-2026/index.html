@@ -305,6 +305,7 @@ function teeSelect(cid,id){
 }
 const courseReady=c=>!!c&&Array.isArray(c.pars)&&Array.isArray(c.si)&&c.pars.length===18&&c.si.length===18&&c.pars.every(v=>num(v))&&c.si.every(v=>num(v));
 function courseHcp(pid,c){
+  if(c?.gross)return{v:0,est:false};   // e.g. Shorty's: no rating, played gross
   const idx=num(S.players[pid]?.index);if(idx==null)return{v:0,est:true,missing:true};
   const sl=num(c?.slope),cr=num(c?.rating),par=num(c?.par);
   if(sl&&cr!=null&&par)return{v:Math.round(idx*sl/113+(cr-par)),est:false};
@@ -1131,6 +1132,10 @@ const NEW_EVENT_DEFAULTS={
   redtail:{name:"RedTail Test Drive",rounds:[{course:"RedTail Golf Center",day:"Sun 10/11"}]},
   "bandon-crossings":{name:"Bandon Warm-ups",rounds:[{course:"Bandon Crossings",day:"Thu 10/15"},{course:"Shorty's",day:"Fri 10/16 AM"}]}
 };
+// course cards we already know, filled in when an event is created
+const KNOWN_COURSES={
+  shortys:{name:"Shorty's",pars:Array(18).fill(3),si:[7, 5, 13, 15, 8, 14, 9, 10, 17, 11, 3, 4, 2, 1, 18, 6, 16, 12],par:54,gross:true,source:"Shorty's card: 19 par 3s, no handicap. Holes 1–18 here (the 19th is off-app). Played gross; SI is by yardage."}
+};
 const courseId=name=>(name.toLowerCase().match(/[a-z0-9]+/g)||["course"]).join("").replace(/golf(center|club|course|links)?$/,"").replace(/^bandon(?=crossings$)/,"")||"course";
 function renderNewEvent(){
   const d=S.newEv||(S.newEv={name:"",rounds:[{course:"",day:""}],...structuredClone(NEW_EVENT_DEFAULTS[EVENT]||{}),players:[{name:"",index:""},{name:"",index:""}],holes:"1-18",format:"singles_mp"});
@@ -1169,7 +1174,7 @@ async function createEvent(){
   ];
   if(two){const [from,to]=d.holes.split("-").map(Number);
     writes.push(["matches/m1",{n:1,round:"r1",from,to,group:"",label:"1v1",format:d.format,pts:1,t1:["p1"],t2:["p2"],manual:null,note:""}])}
-  for(const r of rs)if(!S.courses[r.course]&&!writes.some(w=>w[0]==="courses/"+r.course))writes.push(["courses/"+r.course,{name:r.name}]);
+  for(const r of rs)if(!S.courses[r.course]&&!writes.some(w=>w[0]==="courses/"+r.course))writes.push(["courses/"+r.course,KNOWN_COURSES[r.course]?{...KNOWN_COURSES[r.course]}:{name:r.name}]);
   for(const [path,data] of writes)await write(()=>S.db.doc(path).set(data));
   S.tab=two?"setup":"matches";S.openCourse=cid;ls.set(navKey("tab"),S.tab);render();
   toast(two?"Event created. Next: scan the scorecard on Setup.":"Event created. Add the games here, then scan the scorecard on Setup.");
