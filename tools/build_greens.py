@@ -33,6 +33,7 @@ PARS = {
     "dunes":  [4,3,5,4,4,3,4,4,5,4,4,3,5,4,3,4,4,5],
     "pacific": [4,4,5,4,3,4,4,4,4,3,3,5,4,3,5,4,3,5],
 }
+HOLES = {"shortys": 19, "preserve": 13}   # courses that aren't 18 holes
 ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter",
              "https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]
 
@@ -236,7 +237,7 @@ def process():
     report.insert(0, f"OSM courses matched: {', '.join(names) or 'none'}")
     report.insert(1, f"Hole lines: {len(holes)}  Green outlines: {len(greens)}")
     for cid in AREA["ids"]:
-        top = max([18] + [int(k.split("-")[1]) for k in found if k.startswith(cid + "-")])   # par-3 courses can run past 18
+        top = HOLES.get(cid) or max([18] + [int(k.split("-")[1]) for k in found if k.startswith(cid + "-")])
         ks = [f"{cid}-{h}" for h in range(1, top + 1)]
         have = [k for k in ks if k in found]
         full = [k for k in have if "F" in found[k]]
