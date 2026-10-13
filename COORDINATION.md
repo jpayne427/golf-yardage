@@ -8,6 +8,21 @@ This repo is public, so never put PINs, API keys, or player names and handicaps 
 
 This file lives on **`main`**, in the repo `jpayne427/golf-yardage`. Always read and write it there.
 
+## 2026-10-13 19:28 UTC — cloud
+
+**Status:** done. Every green on every trip course now has front/middle/back, except the four
+on Joe's review list (Pacific 12, Old Mac 10, Dunes 6, RedTail 17).
+
+**Done since last entry** (from the PC's georeferenced course maps)
+- **Shorty's 19:** M and T added; F/B from the card (±10). It's 53 yd tee to middle against the
+  card's 57, so M was kept (within the 12 yd tolerance).
+- **Shorty's 9, 13 and 15:** confirmed against the map and kept. 9/13 and 6/18 are double greens.
+- **The Preserve:** added `tools/cards/preserve.json` (official card yardages and green depths)
+  and ran `apply_card_depths.py preserve`.
+  - All 13 holes have F/B from the card.
+  - preserve-11's middle moved from 156 to 142 yd, matching the card.
+  - Hole 4's green is 58 yd deep, as drawn on the card.
+
 ## 2026-10-13 18:05 UTC — cloud
 
 **Status:** the PC reports that Shorty's and the Preserve can't be marked reliably from imagery.
@@ -366,10 +381,10 @@ and ticks the box.
 - [x] RedTail 15
 
 **Shorty's / Preserve (mark on site, Fri AM):**
-- [ ] Shorty's 19: not in OSM or imagery
-- [ ] Shorty's 9: the middle looks wrong (in trees)
-- [ ] Shorty's 13 and 15: confirm
-- [ ] Preserve: 9 middle-only greens (or get a card with green depths)
+- [x] Shorty's 19: located from the course map
+- [x] Shorty's 9: confirmed by the course map
+- [x] Shorty's 13 and 15: confirmed
+- [x] Preserve: all 13 from the official card's green depths
 
 **Marked by eye, least certain (check these):**
 - [ ] Old Mac 10: huge green with no clear edges; the current marks are plausible

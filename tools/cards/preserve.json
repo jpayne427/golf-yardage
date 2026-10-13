@@ -1,0 +1,86 @@
+{
+ "course": "preserve",
+ "name": "Bandon Preserve",
+ "holes": 13,
+ "par": [
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3
+ ],
+ "yards_to_center": {
+  "back": [
+   134,
+   150,
+   87,
+   118,
+   142,
+   131,
+   147,
+   63,
+   134,
+   120,
+   142,
+   132,
+   109
+  ],
+  "front": [
+   90,
+   93,
+   65,
+   83,
+   95,
+   77,
+   119,
+   40,
+   88,
+   93,
+   95,
+   108,
+   75
+  ]
+ },
+ "green_depth_yards": {
+  "_note": "From the card's green diagrams: front is this many yards short of center, back this many past it.",
+  "front": [
+   27,
+   19,
+   22,
+   29,
+   16,
+   26,
+   20,
+   13,
+   17,
+   17,
+   20,
+   21,
+   19
+  ],
+  "back": [
+   27,
+   19,
+   22,
+   29,
+   16,
+   26,
+   20,
+   14,
+   16,
+   17,
+   20,
+   22,
+   19
+  ]
+ },
+ "source": "Official Bandon Preserve scorecard (via Joe / PC session, Oct 13 2026)"
+}
