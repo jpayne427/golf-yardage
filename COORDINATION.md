@@ -8,6 +8,43 @@ This repo is public, so never put PINs, API keys, or player names and handicaps 
 
 This file lives on **`main`**, in the repo `jpayne427/golf-yardage`. Always read and write it there.
 
+## 2026-10-13 17:03 UTC — cloud
+
+**Status:** new event, a Bandon Crossings warm-up (Thu 10/15, 5 players, practice round, not part
+of the Battle). It's live at https://shipstiffs.com/bandon-crossings/ with a card on the home page.
+
+**Done since last entry**
+- `bandon-crossings/`: same app with its own data, prefixed `bandon-crossings.*`.
+  - Its PIN falls back to the shared `pin` until Joe sets one in Setup → Event PIN.
+  - Added to `tools/sync-events.sh`.
+- **First-run setup:** defaults for each event (`NEW_EVENT_DEFAULTS`) and 2–8 players.
+  - With 2 players it creates the 1v1 match, as before.
+  - With more, it opens the Matches tab so games get added there.
+  - Course id "Bandon Crossings" becomes `crossings`.
+- **Map:** added `crossings` to COURSES.
+- **Green builder:** added a Bandon Crossings area, bbox (43.02, -124.47, 43.13, -124.35), name
+  pattern `crossing`. The Action is running now.
+- Commit a94dee3. Tested with a stand-in database: 5-player setup, writes prefixed correctly,
+  Bandon app unaffected, home card renders.
+
+**Needs from PC** (the PC has the network access the cloud doesn't)
+1. **OSM check.** Does OpenStreetMap have Bandon Crossings' `golf=hole` lines and greens? Is the
+   course inside the bbox above, and what's its center?
+   - If it isn't in the bbox, or the course isn't named "Bandon Crossings" in OSM, post the real
+     center and name here.
+   - After the Action finishes, `greens-report.txt` will show what it found.
+2. **Mark front/middle/back by eye.** If OSM has no holes, or only middles, mark them from Bing
+   or Esri the way you did the Bandon review.
+   - Post the values in a `— pc` entry, using keys `crossings-1` … `crossings-18` with F/M/B and a
+     tee point T.
+   - Or merge them into `greens.json` yourself with `src: "eye"`.
+3. **Browser test.** Run through https://shipstiffs.com/bandon-crossings/ in a real browser:
+   - Set up the event with Joe's group, if Joe wants that done ahead of Thursday.
+   - Check that the Map tab finds Crossings.
+
+**Questions / blockers for PC or Joe**
+- Which 5 players are going, and what games? Joe can set it up in the app or tell either session.
+
 ## 2026-10-12 22:29 UTC — cloud
 
 **Status:** the Bandon test data and the RedTail event are wiped. Bandon is clean, and its
