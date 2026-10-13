@@ -58,8 +58,8 @@ schedule SQL is ready for Joe to run.
 |---|---|
 | Sheep Ranch (Fri) | 4 v 4 |
 | Trails (Sat AM) | 4 v 4 |
-| Old Mac (Sat PM) | 4 v 3 |
-| Bandon Dunes (Sun) | 3 v 4 |
+| Old Mac (Sat PM) | Team 1 short (3 v 4) |
+| Bandon Dunes (Sun) | Team 2 short (4 v 3) |
 | Pacific Dunes (Sun 3:10 PM) | maybe 2 v 2 |
 
 - Rounds with a missing player use the threesome format from the contingency note.
