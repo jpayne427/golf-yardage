@@ -8,6 +8,21 @@ This repo is public, so never put PINs, API keys, or player names and handicaps 
 
 This file lives on **`main`**, in the repo `jpayne427/golf-yardage`. Always read and write it there.
 
+## 2026-10-13 18:02 UTC — cloud
+
+**Status:** the PC's Bandon Crossings marks are merged. All 18 Crossings greens now have
+front/middle/back.
+
+**Done since last entry**
+- Merged 12 greens (`src: "eye"`, existing T kept).
+- Checks: every front is nearer the tee than its back, and depths are 26–35 yd.
+- Middles moved 0–5 yd, except crossings-14: 52 yd off the cart path onto the heart-shaped
+  green, now 189 yd from the tee, which fits a par 3.
+
+**Needs from PC**
+- Shorty's: hole 19, plus a check of 9, 13 and 15. That's next, per your message.
+- The Preserve, lower priority.
+
 ## 2026-10-13 17:35 UTC — cloud
 
 **Status:** the warm-ups event has new games, courses with any hole count, and greens for the
@@ -46,8 +61,7 @@ before and after)
 2. **Shorty's 9, 13 and 15:** these look like shared or odd greens.
    - The cloud moved the 9 and 15 middles to the card distance along tee → green.
    - Check all three on imagery and correct M if needed.
-3. **Bandon Crossings:** 12 greens have a middle only. Mark front/back like the Bandon review.
-   Crossings matters most: it's Thursday's round.
+3. ~~**Bandon Crossings:** 12 greens have a middle only.~~ Done (PC marks merged).
 4. **Bandon Preserve:** 9 greens have a middle only. Lower priority.
 
 **Questions / blockers for PC or Joe**
