@@ -218,7 +218,7 @@ body{margin:0}
 <body>
 
 <header class="top">
-  <div class="brandwrap"><a href="../" aria-label="All events"><img src="../brand/logo-200.png" alt="ShipStiffs"></a><div class="brand" id="evname"><small>ShipStiffs</small>Bandon 2026 <span>Team Battle</span></div></div>
+  <div class="brandwrap"><a href="../" aria-label="All events"><img src="../brand/logo-200.png" alt="ShipStiffs"></a><div class="brand" id="evname"><small>ShipStiffs</small>Bandon 2026 <span>Gorse Cup</span></div></div>
   <div id="sync" class="sync">Connecting…</div>
 </header>
 <main id="main"><div class="splash"><img src="../brand/logo.png" alt="ShipStiffs">Loading the scoreboard…</div></main>
@@ -454,8 +454,8 @@ function matchRow(m,res){
 function renderBoard(){
   const T=totals(),half=T.offered/2;
   let status="No results yet";
-  if(T.dec[0]>half)status=`${teamName("t1")} has won the Battle`;
-  else if(T.dec[1]>half)status=`${teamName("t2")} has won the Battle`;
+  if(T.dec[0]>half)status=`${teamName("t1")} has won the Cup`;
+  else if(T.dec[1]>half)status=`${teamName("t2")} has won the Cup`;
   else if(T.decided>0){const need=i=>half+0.5-T.dec[i];status=`${teamName("t1")} needs ${fmtPts(Math.max(0,need(0)))} · ${teamName("t2")} needs ${fmtPts(Math.max(0,need(1)))}`}
   const showProj=T.live.length>0;
   let h=`<section class="sec">
