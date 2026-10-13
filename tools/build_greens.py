@@ -19,6 +19,10 @@ AREAS = [
     {"name": "RedTail (Portland)", "bbox": (45.42, -122.86, 45.51, -122.73),
      "courses": [(None, r"practice|range|driving|par\s*3|executive|pitch"), ("redtail", r"red\s*tail")],
      "named": ("redtail",), "shared": (), "default": "redtail", "ids": ["redtail"]},
+    # south of town, well clear of the resort's bbox
+    {"name": "Bandon Crossings", "bbox": (43.02, -124.47, 43.13, -124.35),
+     "courses": [(None, r"practice|range|driving|par\s*3|pitch|dunes|preserve|sheep|trails|old\s*mac|pacific|shorty"), ("crossings", r"crossing")],
+     "named": ("crossings",), "shared": (), "default": "crossings", "ids": ["crossings"]},
 ]
 BBOX = AREAS[0]["bbox"]; COURSES = AREAS[0]["courses"]; AREA = AREAS[0]   # set per area in main()
 # card pars, used to check which routing belongs to which course

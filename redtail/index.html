@@ -825,6 +825,8 @@ document.addEventListener("click",e=>{
     case"changepin":changePin();break;
     case"holes":{const m=S.matches[S.openMatch];const [a,z]=b.dataset.r.split("-").map(Number);if(m)updDoc("matches/"+m.id,{from:a,to:z});break}
     case"newevent":createEvent();break;
+    case"neadd":if(S.newEv&&S.newEv.players.length<8){S.newEv.players.push({name:"",index:""});render()}break;
+    case"nedrop":if(S.newEv&&S.newEv.players.length>2){S.newEv.players.pop();render()}break;
     case"addtee":{const cid=b.dataset.id,c=S.courses[cid]||{};S.openCourse=cid;updDoc("courses/"+cid,{teeSets:[...teeSetsOf(c),{name:"New tees",rating:null,slope:null,par:num(c.par)}]});break}
     case"deltee":{const [cid,i]=b.dataset.id.split(":"),c=S.courses[cid]||{},ts=teeSetsOf(c).filter((_,k)=>k!==+i);S.openCourse=cid;updDoc("courses/"+cid,{teeSets:ts});break}
     case"scan":S.scanCourse=b.dataset.id;SCAN.tray=[];SCAN.trayFor=b.dataset.id;$("#scanfile").value="";$("#scanfile").click();break;
@@ -934,40 +936,48 @@ function makeStore(sb){
   };
 }
 /* ---------- first-run setup for a new event ---------- */
+const NEW_EVENT_DEFAULTS={
+  redtail:{name:"RedTail Test Drive",day:"Sun 10/11",course:"RedTail Golf Center"},
+  "bandon-crossings":{name:"Bandon Crossings Warm-up",day:"Thu 10/15",course:"Bandon Crossings"}
+};
 function renderNewEvent(){
-  const d=S.newEv||(S.newEv={name:"RedTail Test Drive",day:"Sun 10/11",course:"RedTail Golf Center",p1:"",i1:"",p2:"",i2:"",holes:"1-9",format:"singles_mp"});
+  const d=S.newEv||(S.newEv={name:"",day:"",course:"",...(NEW_EVENT_DEFAULTS[EVENT]||{}),players:[{name:"",index:""},{name:"",index:""}],holes:"1-18",format:"singles_mp"});
   const games=Object.entries(FORMATS).filter(([,v])=>v.side===1);
-  return`<section class="sec"><h2>Set up this event</h2><p class="hint">Two players, one round. You can change any of this later on the Setup and Matches tabs.</p>
+  const two=d.players.length===2;
+  return`<section class="sec"><h2>Set up this event</h2><p class="hint">Add the players and the round. You can change any of this later on the Setup and Matches tabs.</p>
   ${S.readOnly?`<div class="banner" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span>Enter the PIN to create it.</span><button class="btn primary" data-act="pin" style="padding:8px 12px">Enter PIN</button></div>`:""}
   <div class="card">
     <div class="field"><label for="ne-name">Event name</label><input id="ne-name" type="text" value="${esc(d.name)}" data-ne="name"></div>
     <div class="grid2"><div class="field"><label for="ne-course">Course</label><input id="ne-course" type="text" value="${esc(d.course)}" data-ne="course"></div>
     <div class="field"><label for="ne-day">Day</label><input id="ne-day" type="text" value="${esc(d.day)}" data-ne="day"></div></div>
-    <div class="plrow" style="grid-template-columns:minmax(0,1fr) 80px"><div class="field"><label for="ne-p1">Player 1</label><input id="ne-p1" type="text" placeholder="Name" value="${esc(d.p1)}" data-ne="p1"></div><div class="field"><label for="ne-i1">Index</label><input id="ne-i1" type="number" step="0.1" inputmode="decimal" value="${esc(d.i1)}" data-ne="i1"></div></div>
-    <div class="plrow" style="grid-template-columns:minmax(0,1fr) 80px"><div class="field"><label for="ne-p2">Player 2</label><input id="ne-p2" type="text" placeholder="Name" value="${esc(d.p2)}" data-ne="p2"></div><div class="field"><label for="ne-i2">Index</label><input id="ne-i2" type="number" step="0.1" inputmode="decimal" value="${esc(d.i2)}" data-ne="i2"></div></div>
-    <div class="field"><label for="ne-holes">Holes</label><select id="ne-holes" data-ne="holes">${[["1-9","Front 9"],["10-18","Back 9"],["1-18","18 holes"]].map(([v,l])=>`<option value="${v}" ${d.holes===v?"selected":""}>${l}</option>`).join("")}</select></div>
+    ${d.players.map((p,i)=>`<div class="plrow" style="grid-template-columns:minmax(0,1fr) 80px"><div class="field"><label for="ne-p${i}">Player ${i+1}</label><input id="ne-p${i}" type="text" placeholder="Name" value="${esc(p.name)}" data-nep="${i}:name"></div><div class="field"><label for="ne-i${i}">Index</label><input id="ne-i${i}" type="number" step="0.1" inputmode="decimal" value="${esc(p.index)}" data-nep="${i}:index"></div></div>`).join("")}
+    <div style="display:flex;gap:8px">${d.players.length<8?`<button class="btn" data-act="neadd">Add a player</button>`:""}${d.players.length>2?`<button class="btn" data-act="nedrop">Remove last</button>`:""}</div>
+    ${two?`<div class="field"><label for="ne-holes">Holes</label><select id="ne-holes" data-ne="holes">${[["1-9","Front 9"],["10-18","Back 9"],["1-18","18 holes"]].map(([v,l])=>`<option value="${v}" ${d.holes===v?"selected":""}>${l}</option>`).join("")}</select></div>
     <div class="field"><label for="ne-format">Game</label><select id="ne-format" data-ne="format">${games.map(([k,v])=>`<option value="${k}" ${d.format===k?"selected":""}>${v.label}</option>`).join("")}</select></div>
-    <p class="hint" style="margin:0">${esc(ALLOW_NOTE[d.format]||"")}</p>
+    <p class="hint" style="margin:0">${esc(ALLOW_NOTE[d.format]||"")}</p>`:`<p class="hint" style="margin:0">With ${d.players.length} players, set up the games on the Matches tab after you create the event.</p>`}
     <button class="btn primary" data-act="newevent" ${S.readOnly?"disabled":""}>Create event</button>
   </div></section>`;
 }
-document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset.ne;if(k&&S.newEv)S.newEv[k]=e.target.value});
+document.addEventListener("input",e=>{const ds=e.target.dataset||{};if(!S.newEv)return;
+  if(ds.ne)S.newEv[ds.ne]=e.target.value;
+  if(ds.nep){const [i,k]=ds.nep.split(":");S.newEv.players[+i][k]=e.target.value}});
 document.addEventListener("change",e=>{const k=e.target.dataset&&e.target.dataset.ne;if(k&&S.newEv){S.newEv[k]=e.target.value;if(k==="format")render()}});
 async function createEvent(){
   const d=S.newEv;if(!d||S.readOnly)return;
-  if(!d.p1.trim()||!d.p2.trim()){toast("Add both players' names.");return}
-  const cid=(d.course.toLowerCase().match(/[a-z0-9]+/g)||["course"]).join("").replace(/golf(center|club|course|links)?$/,"")||"course";
-  const [from,to]=d.holes.split("-").map(Number);
+  const ps=d.players.map(p=>({name:p.name.trim(),index:num(p.index)}));
+  if(ps.some(p=>!p.name)){toast("Add every player's name, or remove the empty rows.");return}
+  const cid=(d.course.toLowerCase().match(/[a-z0-9]+/g)||["course"]).join("").replace(/golf(center|club|course|links)?$/,"").replace(/^bandon(?=crossings$)/,"")||"course";
+  const two=ps.length===2;
   const writes=[
-    ["setup/main",{name:d.name.trim()||"Test Event",teams:{t1:{name:d.p1.trim()},t2:{name:d.p2.trim()}},allowances:{...DEFAULT_ALLOW},rounds:[{id:"r1",course:cid,name:d.course.trim(),day:d.day.trim()}]}],
-    ["players/p1",{name:d.p1.trim(),index:num(d.i1),team:"t1"}],
-    ["players/p2",{name:d.p2.trim(),index:num(d.i2),team:"t2"}],
-    ["matches/m1",{n:1,round:"r1",from,to,group:"",label:"1v1",format:d.format,pts:1,t1:["p1"],t2:["p2"],manual:null,note:""}],
+    ["setup/main",{name:d.name.trim()||"Test Event",teams:two?{t1:{name:ps[0].name},t2:{name:ps[1].name}}:{t1:{name:"Team 1"},t2:{name:"Team 2"}},allowances:{...DEFAULT_ALLOW},rounds:[{id:"r1",course:cid,name:d.course.trim(),day:d.day.trim()}]}],
+    ...ps.map((p,i)=>["players/p"+(i+1),{name:p.name,index:p.index,team:two?(i?"t2":"t1"):""}]),
   ];
+  if(two){const [from,to]=d.holes.split("-").map(Number);
+    writes.push(["matches/m1",{n:1,round:"r1",from,to,group:"",label:"1v1",format:d.format,pts:1,t1:["p1"],t2:["p2"],manual:null,note:""}])}
   if(!S.courses[cid])writes.push(["courses/"+cid,{name:d.course.trim()}]);
   for(const [path,data] of writes)await write(()=>S.db.doc(path).set(data));
-  S.tab="setup";S.openCourse=cid;ls.set(navKey("tab"),"setup");render();
-  toast("Event created. Next: scan the scorecard on Setup.");
+  S.tab=two?"setup":"matches";S.openCourse=cid;ls.set(navKey("tab"),S.tab);render();
+  toast(two?"Event created. Next: scan the scorecard on Setup.":"Event created. Add the games here, then scan the scorecard on Setup.");
 }
 
 /* ---------- scorecard scanner ---------- */
