@@ -868,21 +868,22 @@ function chokeFrom(seq,total,sides,label,final,add,unit){
   if(final&&seq.length===total&&leadAt){const s=leadAt>0?0:1;if(Math.sign(run)!==Math.sign(leadAt))add(sides[s],1,`${label}: ${up(Math.abs(leadAt))} with 3 to play, ${run===0?"halved":"lost"}`)}
 }
 function computeChoke(){
-  const pts={},log=[];
-  const add=(ps,n,why)=>{ps.forEach(p=>{if(S.players[p])pts[p]=(pts[p]||0)+n});log.push({ps,why})};
+  const pts={},team={},log=[];
+  const add=(ps,n,why)=>{ps.forEach(p=>{if(S.players[p])pts[p]=(pts[p]||0)+n});const t=S.players[ps[0]]?.team;if(t)team[t]=(team[t]||0)+n;log.push({ps,why})};
   for(const m of matchList()){
     const res=computeMatch(m),k=res.f?.kind;if(res.manual||!["mp","sf","sp"].includes(k))continue;
     const seq=res.rows.filter(r=>r.counted).map(r=>({h:r.h,d:k==="mp"?(r.won==="t1"?1:r.won==="t2"?-1:0):k==="sf"?r.side[0]-r.side[1]:r.side[1]-r.side[0]}));
     const r=roundById(m.round);
     chokeFrom(seq,res.total,res.sides,`${r?.name||""} ${holesLabel(m)} · ${res.sides[0].map(shortName).join("+")} v ${res.sides[1].map(shortName).join("+")}`,res.final,add,k==="mp"?"hole":k==="sf"?"pt":"stroke");
   }
-  return{pts,log};
+  return{pts,team,log};
 }
 function renderChoke(){
-  const {pts,log}=computeChoke();const rows=Object.entries(pts).sort((a,b)=>b[1]-a[1]);
+  const {pts,team,log}=computeChoke();const rows=Object.entries(pts).sort((a,b)=>b[1]-a[1]);
   let h=`<section class="sec"><div class="rhead"><h2>Choke index</h2><span class="hint">Whole trip</span></div>
     <p class="hint">${chokeRules()}</p>`;
   if(!rows.length)return h+`<p class="hint">Nobody has choked yet.</p></section>`;
+  if(Object.keys(team).length)h+=`<p class="hint" style="margin:0 0 6px">Team (a pair's choke counts once): ${["t1","t2"].map(t=>`<span class="tdot ${t}"></span>${esc(teamName(t))} <b>${team[t]||0}</b>`).join(" · ")}</p>`;
   h+=`<div class="tbl"><table><tbody>${rows.map(([p,n],i)=>`<tr><td><span class="tdot ${S.players[p]?.team||"none"}"></span>${esc(S.players[p]?.name||"")}${n===rows[0][1]?` <span class="pill">${rows.filter(x=>x[1]===n).length>1?"splits dinner":"buys dinner"}</span>`:""}</td><td class="r num"><b>${n}</b></td></tr>`).join("")}</tbody></table></div>`;
   h+=`<div class="mlist" style="margin-top:8px">${log.slice(-12).reverse().map(x=>`<div class="lv" style="border:0;border-bottom:1px solid var(--line);border-radius:0"><span><b>${esc(x.ps.map(shortName).join(" + "))}</b></span><span class="hint" style="text-align:right">${esc(x.why)}</span></div>`).join("")}</div>`;
   return h+`</section>`;
