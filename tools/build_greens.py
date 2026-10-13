@@ -12,10 +12,10 @@ import json, math, re, time, traceback, urllib.parse, urllib.request
 # outline and are told apart by card pars. default: id for routings when the area has one course.
 AREAS = [
     {"name": "Bandon Dunes", "bbox": (43.14, -124.44, 43.25, -124.35),
-     "courses": [(None, r"preserve|punchbowl|practice|range"), ("shortys", r"shorty"), ("sheep", r"sheep"), ("trails", r"trails"),
+     "courses": [(None, r"punchbowl|practice|range"), ("shortys", r"shorty"), ("preserve", r"preserve"), ("sheep", r"sheep"), ("trails", r"trails"),
                  ("oldmac", r"old\s*mac"), ("pacific", r"pacific"), ("dunes", r"bandon dunes")],
-     "named": ("sheep", "trails", "shortys"), "shared": ("oldmac", "dunes", "pacific"), "default": None,
-     "ids": ["sheep", "trails", "oldmac", "dunes", "pacific", "shortys"]},
+     "named": ("sheep", "trails", "shortys", "preserve"), "shared": ("oldmac", "dunes", "pacific"), "default": None,
+     "ids": ["sheep", "trails", "oldmac", "dunes", "pacific", "shortys", "preserve"]},
     {"name": "RedTail (Portland)", "bbox": (45.42, -122.86, 45.51, -122.73),
      "courses": [(None, r"practice|range|driving|par\s*3|executive|pitch"), ("redtail", r"red\s*tail")],
      "named": ("redtail",), "shared": (), "default": "redtail", "ids": ["redtail"]},
