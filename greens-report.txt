@@ -104,7 +104,7 @@ pacific: 7 full F/M/B, 11 middle only, missing holes: none
   pacific-16: green depth 31 yd
   pacific-17: no green outline, middle = end of hole line
   pacific-18: no green outline, middle = end of hole line
-shortys: 2 full F/M/B, 16 middle only, missing holes: none
+shortys: 2 full F/M/B, 16 middle only, missing holes: 19
   shortys-1: no green outline, middle = end of hole line
   shortys-2: no green outline, middle = end of hole line
   shortys-3: no green outline, middle = end of hole line
@@ -123,7 +123,7 @@ shortys: 2 full F/M/B, 16 middle only, missing holes: none
   shortys-16: no green outline, middle = end of hole line
   shortys-17: no green outline, middle = end of hole line
   shortys-18: no green outline, middle = end of hole line
-preserve: 4 full F/M/B, 9 middle only, missing holes: 14, 15, 16, 17, 18
+preserve: 4 full F/M/B, 9 middle only, missing holes: none
   preserve-1: no green outline, middle = end of hole line
   preserve-2: no green outline, middle = end of hole line
   preserve-3: green depth 15 yd
@@ -138,30 +138,53 @@ preserve: 4 full F/M/B, 9 middle only, missing holes: 14, 15, 16, 17, 18
   preserve-12: no green outline, middle = end of hole line
   preserve-13: no green outline, middle = end of hole line
 ===== RedTail (Portland) =====
-OSM courses matched: RedTail Golf Course
-Hole lines: 36  Green outlines: 48
-Routings found: 2 (lengths 18, 18)
-  routing 0: ?, 18 holes, avg lat 45.4742, hole yards 1:408 2:437 3:276 4:114 5:503 6:372 7:331 8:192 9:351 10:500 11:351 12:179 13:369 14:381 15:517 16:376 17:160 18:445
-  routing 1: redtail, 18 holes, avg lat 45.4589, hole yards 1:368 2:174 3:345 4:416 5:379 6:180 7:640 8:403 9:505 10:377 11:473 12:179 13:410 14:460 15:451 16:222 17:444 18:453
-redtail: 4 full F/M/B, 14 middle only, missing holes: none
-  redtail-1: green depth 33 yd
-  redtail-2: odd green shape (9 yd deep), middle = green center
-  redtail-3: no green outline, middle = end of hole line
-  redtail-4: no green outline, middle = end of hole line
-  redtail-5: odd green shape (7 yd deep), middle = green center
-  redtail-6: green depth 35 yd
-  redtail-7: green depth 42 yd
-  redtail-8: green depth 20 yd
-  redtail-9: no green outline, middle = end of hole line
-  redtail-10: no green outline, middle = end of hole line
-  redtail-11: no green outline, middle = end of hole line
-  redtail-12: no green outline, middle = end of hole line
-  redtail-13: no green outline, middle = end of hole line
-  redtail-14: no green outline, middle = end of hole line
-  redtail-15: no green outline, middle = end of hole line
-  redtail-16: no green outline, middle = end of hole line
-  redtail-17: no green outline, middle = end of hole line
-  redtail-18: no green outline, middle = end of hole line
+FAILED
+Traceback (most recent call last):
+  File "/home/runner/work/golf-yardage/golf-yardage/tools/build_greens.py", line 256, in main
+    f, r = process()
+           ^^^^^^^^^
+  File "/home/runner/work/golf-yardage/golf-yardage/tools/build_greens.py", line 125, in process
+    els = overpass()
+          ^^^^^^^^^^
+  File "/home/runner/work/golf-yardage/golf-yardage/tools/build_greens.py", line 65, in overpass
+    raise RuntimeError("Overpass failed:\n" + "\n".join(errors))
+RuntimeError: Overpass failed:
+https://overpass-api.de/api/interpreter: HTTP Error 504: Gateway Timeout <?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" lan
+https://overpass.private.coffee/api/interpreter: The read operation timed out
+https://maps.mail.ru/osm/tools/overpass/api/interpreter: HTTP Error 504: Gateway Time-out <html>
+<head><title>504 Gateway Time-out</title></head>
+<body>
+<center><h1>504 Gateway Time-out</h1></center>
+<hr><center>nginx</center>
+</body>
+</html>
+https://overpass.kumi.systems/api/interpreter: The read operation timed out
+https://overpass-api.de/api/interpreter: HTTP Error 504: Gateway Timeout <?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" lan
+https://overpass.private.coffee/api/interpreter: HTTP Error 504: Gateway Timeout <?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" lan
+https://maps.mail.ru/osm/tools/overpass/api/interpreter: HTTP Error 504: Gateway Time-out <html>
+<head><title>504 Gateway Time-out</title></head>
+<body>
+<center><h1>504 Gateway Time-out</h1></center>
+<hr><center>nginx</center>
+</body>
+</html>
+https://overpass.kumi.systems/api/interpreter: The read operation timed out
+
 ===== Bandon Crossings =====
 OSM courses matched: none
 Hole lines: 18  Green outlines: 22
