@@ -499,6 +499,17 @@ function groupsFor(round){
   if(extra.length)g.push({key:g.length?"Others":"Everyone",matches:[],t1:extra,t2:[],from:1,to:roundHoles(round),open:true});
   return g;
 }
+// gross and net (full course handicap) so far, for a group just keeping score
+function renderTotals(r,c,players,G){
+  const N=nHoles(c),rows=players.map(p=>{const ch=courseHcp(p,c);let g=0,n=0,par=0,thru=0,pu=false;
+    for(let x=G.from;x<=G.to;x++){const v=cardVal(r.id,p,x);if(v==null)continue;const pr=num(c.pars[x-1]);if(v==="x"){pu=true;continue}
+      g+=v;n+=v-shotsOn(ch.v,num(c.si[x-1]),N);par+=pr;thru++}
+    return{p,ch,g,n,par,thru,pu}});
+  if(!rows.some(x=>x.thru))return"";
+  const tp=v=>v===0?"E":v>0?"+"+v:String(v);
+  return`<section class="sec"><h3>${G.matches.length?"Totals":"Scores so far"}</h3><div class="tbl"><table><thead><tr><th>Player</th><th class="r">Hcp</th><th class="r">Thru</th><th class="r">Gross</th><th class="r">Net</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${esc(S.players[x.p].name)}${x.pu?` <span class="hint">PU</span>`:""}</td><td class="r num">${x.ch.missing?"–":x.ch.v+(x.ch.est?"*":"")}</td><td class="r num">${x.thru||"–"}</td><td class="r num">${x.thru?`${x.g} <span class="hint">${tp(x.g-x.par)}</span>`:"–"}</td><td class="r num">${x.thru?`<b>${x.n}</b> <span class="hint">${tp(x.n-x.par)}</span>`:"–"}</td></tr>`).join("")}</tbody></table></div>
+    <p class="hint">Net uses each player's full course handicap${c.gross?" (this course is played gross)":""}. Picked-up holes are left out of the totals.${rows.some(x=>x.ch.est)?" * estimated until the course rating and slope are in.":""}</p></section>`;
+}
 function renderScore(){
   const rs=rounds();if(!rs.length)return`<div class="empty">No rounds yet.</div>`;
   if(!roundById(S.scoreRound))S.scoreRound=rs[0].id;
@@ -527,6 +538,8 @@ function renderScore(){
   const results=covering.map(computeMatch);
   // a player in two matches on this hole (e.g. one player against two in a threesome) can get different strokes in each
   const shots={};for(const res of results){for(const p of Object.keys(res.ph)){const opp=res.sides[res.sides[0].includes(p)?1:0];(shots[p]||(shots[p]=[])).push({n:shotsOn(res.ph[p],si,nHoles(c)),vs:opp})}}
+  // no match on this hole (just keeping score): strokes from the player's full course handicap
+  if(ready)for(const p of players)if(!shots[p]){const ch=courseHcp(p,c);if(!ch.missing)shots[p]=[{n:shotsOn(ch.v,si,nHoles(c)),vs:null}]}
   h+=`<div class="hole"><div class="hole-h"><div class="hn num"><small>Hole</small>${hh}</div><div class="hp"><span>Par<b class="num">${par??"–"}</b></span><span>SI<b class="num">${si??"–"}</b></span><a href="${esc(yardUrl())}#${esc(r.course)}-${hh}" target="_blank" rel="noopener" style="align-self:center;color:var(--accent);font-weight:600;text-decoration:none">Yards ↗</a></div></div>`;
   for(const p of players){
     const v=cardVal(r.id,p,hh),team=G.open?(S.players[p].team||"none"):G.t1.includes(p)?"t1":"t2",sl=shots[p]||[],split=new Set(sl.map(x=>x.n)).size>1,st=split?Math.max(...sl.map(x=>x.n)):(sl[0]?.n||0);
@@ -542,6 +555,7 @@ function renderScore(){
   }
   h+=`</div><div class="navrow"><button class="btn" data-act="shole" data-h="${hh-1}" ${hh<=G.from?"disabled":""}>← Hole ${hh-1}</button><button class="btn primary" data-act="shole" data-h="${hh+1}" ${hh>=G.to?"disabled":""}>Hole ${hh+1} →</button></div>`;
   h+=`<p class="hint">Tap the middle box for par, then − or + to adjust. PU = picked up (no score on the hole).</p>`;
+  if(ready)h+=renderTotals(r,c,players,G);
   if(G.matches.length)h+=`<section class="sec"><h3>Matches in this group</h3><div class="mlist">${G.matches.map(m=>matchRow(m,computeMatch(m))).join("")}</div></section>`;
   return h;
 }
