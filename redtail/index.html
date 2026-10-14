@@ -156,7 +156,7 @@ textarea{min-height:60px;resize:vertical}
 .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .plrow{display:grid;grid-template-columns:minmax(0,1fr) 72px 104px 36px;gap:6px;align-items:center}
 .plrow .x{border:0;background:none;color:var(--muted);font-size:20px;height:40px}
-.holes-grid{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:4px;font-size:12px}
+.holes-grid{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));grid-template-rows:auto auto auto;grid-auto-flow:column;gap:4px;font-size:12px}   /* hole by hole down the columns, so a short last row (hole 19) stays lined up */
 .holes-grid .hl{text-align:center;color:var(--muted);font-weight:600}
 .holes-grid input{padding:6px 2px;text-align:center;font-size:15px}
 details.card>summary{cursor:pointer;font-weight:600;display:flex;justify-content:space-between;gap:8px;list-style:none}
@@ -656,9 +656,7 @@ function renderSetup(){
     if(ts.length)h+=`<div class="field"><label for="tsel-${cid}">Playing from</label>${teeSelect(cid,"tsel-"+cid)}</div>`;
     for(const half of chunks9(N)){
       h+=`<div class="holes-grid">`;
-      for(let x=half[0];x<=half[1];x++)h+=`<span class="hl">${x}</span>`;
-      for(let x=half[0];x<=half[1];x++)h+=`<input id="hp-${cid}-${x}" type="number" inputmode="numeric" aria-label="Hole ${x} par" value="${esc(c.pars?.[x-1]??"")}" data-set="course:${cid}:pars:${x}" ${dis}>`;
-      for(let x=half[0];x<=half[1];x++)h+=`<input id="hs-${cid}-${x}" type="number" inputmode="numeric" aria-label="Hole ${x} stroke index" value="${esc(c.si?.[x-1]??"")}" data-set="course:${cid}:si:${x}" ${dis} style="background:var(--sunk)">`;
+      for(let x=half[0];x<=half[1];x++)h+=`<span class="hl">${x}</span><input id="hp-${cid}-${x}" type="number" inputmode="numeric" aria-label="Hole ${x} par" value="${esc(c.pars?.[x-1]??"")}" data-set="course:${cid}:pars:${x}" ${dis}><input id="hs-${cid}-${x}" type="number" inputmode="numeric" aria-label="Hole ${x} stroke index" value="${esc(c.si?.[x-1]??"")}" data-set="course:${cid}:si:${x}" ${dis} style="background:var(--sunk)">`;
       h+=`</div>`;
     }
     h+=`<p class="hint">Top row par, shaded row stroke index (SI). Card par total: ${parSum||"–"}${siBad?` · <b style="color:var(--warn)">SI should use 1–${N} once each</b>`:""}${c.source?` · ${esc(c.source)}`:""}</p>`;
@@ -1451,9 +1449,7 @@ function drawReview(){
     <div class="field"><label for="scanslope">Slope</label><input id="scanslope" type="number" inputmode="numeric" value="${SCAN.slope??""}" class="${SCAN.slope==null?"bad":""}"></div></div></section>`;
   h+=`<section class="card">`;
   for(const half of chunks9(SCAN.n).map(([a,z])=>[a-1,z])){h+=`<div class="holes-grid">`;
-    for(let i=half[0];i<half[1];i++)h+=`<span class="hl">${i+1}</span>`;
-    for(let i=half[0];i<half[1];i++)h+=cell("pars",i);
-    for(let i=half[0];i<half[1];i++)h+=cell("si",i);h+=`</div>`}
+    for(let i=half[0];i<half[1];i++)h+=`<span class="hl">${i+1}</span>`+cell("pars",i)+cell("si",i);h+=`</div>`}
   h+=`<p class="hint" style="margin:0">Top row par (total ${tot}), shaded row stroke index.</p></section>`;
   if(SCAN.noSI)h+=`<p class="hint" style="margin:0">This card has no handicap row, so stroke index is set in hole order. If the course has no handicaps, set it to <b>Gross only</b> on its Setup card after saving.</p>`;
   if(card.notes)h+=`<p class="hint" style="margin:0"><b>Scanner notes:</b> ${esc(card.notes)}</p>`;
