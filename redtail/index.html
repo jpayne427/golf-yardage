@@ -288,6 +288,8 @@ const navKey=k=>EVENT==="bandon-2026"?k:EVENT+":"+k;               // remembered
 const rounds=()=>S.setup?.rounds||[];
 const roundById=id=>rounds().find(r=>r.id===id);
 const roundPlayers=r=>(r?.players||[]).filter(p=>S.players[p]);
+// teams are on when Setup says so, or (if never set) when anyone is on a team
+const teamsOn=()=>S.setup?.noTeams!=null?!S.setup.noTeams:Object.values(S.players).some(p=>p.team==="t1"||p.team==="t2");
 const teamName=t=>S.setup?.teams?.[t]?.name||(t==="t1"?"Team 1":"Team 2");
 const matchList=()=>Object.values(S.matches).sort((a,b)=>(a.n||0)-(b.n||0));
 function shortName(pid){
@@ -452,7 +454,24 @@ function matchRow(m,res){
     ${pill(res)}</button>`;
 }
 
+// no teams: each round's gross and net, the side-game money, and any head-to-head matches
+function renderBoardSolo(){
+  let h="",any=false;
+  for(const r of rounds()){const c=S.courses[r.course];if(!courseReady(c))continue;
+    const ps=[...new Set(groupsFor(r.id).flatMap(G=>[...G.t1,...G.t2]))];if(!ps.length)continue;
+    const t=renderTotals(r,c,ps,{from:1,to:roundHoles(r.id),matches:[]},`${esc(r.name)} <span class="hint" style="text-transform:none;letter-spacing:0">${esc(r.day||"")}</span>`);
+    if(t){h+=t;any=true}}
+  const money={},games={};
+  for(const g of Object.values(S.games||{})){const R=computeGame(g);if(!R.ok)continue;
+    for(const [p,v] of Object.entries(R.money)){if(!S.players[p])continue;money[p]=(money[p]||0)+v;games[p]=(games[p]||0)+1}}
+  const mp=Object.entries(money).sort((a,b)=>b[1]-a[1]);
+  if(mp.length){any=true;h+=`<section class="sec"><h3>Side-game money</h3><div class="tbl"><table><thead><tr><th>Player</th><th class="r">Games</th><th class="r">Net</th></tr></thead><tbody>${mp.map(([p,v])=>`<tr><td>${esc(S.players[p].name)}</td><td class="r num">${games[p]}</td><td class="r num"><b>${sgn(v)}</b></td></tr>`).join("")}</tbody></table></div><p class="hint">Every side game in every round, including ones still in progress. Details on the Games tab.</p></section>`}
+  const ms=matchList().map(m=>({m,res:computeMatch(m)})).filter(x=>x.res.state!=="unset"&&x.res.state!=="noformat");
+  if(ms.length){any=true;h+=`<section class="sec"><h3>Matches</h3><div class="mlist">${ms.map(x=>matchRow(x.m,x.res)).join("")}</div></section>`}
+  return any?h:`<div class="empty">Nothing to show yet. Scores, side-game money and matches appear here once rounds start.</div>`;
+}
 function renderBoard(){
+  if(!teamsOn())return renderBoardSolo();
   const T=totals(),half=T.offered/2;
   let status="No results yet";
   if(T.dec[0]>half)status=`${teamName("t1")} has won the Cup`;
@@ -500,14 +519,15 @@ function groupsFor(round){
   return g;
 }
 // gross and net (full course handicap) so far, for a group just keeping score
-function renderTotals(r,c,players,G){
+function renderTotals(r,c,players,G,title){
   const N=nHoles(c),rows=players.map(p=>{const ch=courseHcp(p,c);let g=0,n=0,par=0,thru=0,pu=false;
     for(let x=G.from;x<=G.to;x++){const v=cardVal(r.id,p,x);if(v==null)continue;const pr=num(c.pars[x-1]);if(v==="x"){pu=true;continue}
       g+=v;n+=v-shotsOn(ch.v,num(c.si[x-1]),N);par+=pr;thru++}
     return{p,ch,g,n,par,thru,pu}});
   if(!rows.some(x=>x.thru))return"";
+  if(title)rows.sort((a,b)=>(!a.thru)-(!b.thru)||(a.n-a.par)-(b.n-b.par));
   const tp=v=>v===0?"E":v>0?"+"+v:String(v);
-  return`<section class="sec"><h3>${G.matches.length?"Totals":"Scores so far"}</h3><div class="tbl"><table><thead><tr><th>Player</th><th class="r">Hcp</th><th class="r">Thru</th><th class="r">Gross</th><th class="r">Net</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${esc(S.players[x.p].name)}${x.pu?` <span class="hint">PU</span>`:""}</td><td class="r num">${x.ch.missing?"–":x.ch.v+(x.ch.est?"*":"")}</td><td class="r num">${x.thru||"–"}</td><td class="r num">${x.thru?`${x.g} <span class="hint">${tp(x.g-x.par)}</span>`:"–"}</td><td class="r num">${x.thru?`<b>${x.n}</b> <span class="hint">${tp(x.n-x.par)}</span>`:"–"}</td></tr>`).join("")}</tbody></table></div>
+  return`<section class="sec"><h3>${title||(G.matches.length?"Totals":"Scores so far")}</h3><div class="tbl"><table><thead><tr><th>Player</th><th class="r">Hcp</th><th class="r">Thru</th><th class="r">Gross</th><th class="r">Net</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${esc(S.players[x.p].name)}${x.pu?` <span class="hint">PU</span>`:""}</td><td class="r num">${x.ch.missing?"–":x.ch.v+(x.ch.est?"*":"")}</td><td class="r num">${x.thru||"–"}</td><td class="r num">${x.thru?`${x.g} <span class="hint">${tp(x.g-x.par)}</span>`:"–"}</td><td class="r num">${x.thru?`<b>${x.n}</b> <span class="hint">${tp(x.n-x.par)}</span>`:"–"}</td></tr>`).join("")}</tbody></table></div>
     <p class="hint">Net uses each player's full course handicap${c.gross?" (this course is played gross)":""}. Picked-up holes are left out of the totals.${rows.some(x=>x.ch.est)?" * estimated until the course rating and slope are in.":""}</p></section>`;
 }
 function renderScore(){
@@ -580,20 +600,22 @@ function renderSetup(){
   const dis=S.readOnly?"disabled":"";
   let h="";
 
-  h+=`<section class="sec"><h2>Teams</h2><div class="card grid2">${["t1","t2"].map(t=>`<div class="field"><label for="tn-${t}"><span class="tdot ${t}"></span>${t==="t1"?"Team 1":"Team 2"} name</label><input id="tn-${t}" type="text" value="${esc(teamName(t))}" data-set="team:${t}" ${dis}></div>`).join("")}</div></section>`;
+  const TM=teamsOn();
+  h+=`<section class="sec"><h2>Format</h2><div class="card"><div class="field"><label for="tm-on">Teams</label><select id="tm-on" data-set="noteams:x" ${dis}><option value="0" ${TM?"selected":""}>Two teams (a team competition)</option><option value="1" ${TM?"":"selected"}>No teams (everyone for themselves)</option></select></div><p class="hint" style="margin:0">${TM?"The Board shows the team score. Name the teams and put players on them below.":"The Board shows each round's gross and net scores and the side-game money. Head-to-head matches still work."}</p></div></section>`;
+  if(TM)h+=`<section class="sec"><h2>Teams</h2><div class="card grid2">${["t1","t2"].map(t=>`<div class="field"><label for="tn-${t}"><span class="tdot ${t}"></span>${t==="t1"?"Team 1":"Team 2"} name</label><input id="tn-${t}" type="text" value="${esc(teamName(t))}" data-set="team:${t}" ${dis}></div>`).join("")}</div></section>`;
   const pl=Object.entries(S.players).sort((a,b)=>String(a[1].name).localeCompare(String(b[1].name)));
   const tot={t1:[],t2:[]};pl.forEach(([,p])=>{if(tot[p.team]&&num(p.index)!=null)tot[p.team].push(num(p.index))});
   const sum=a=>a.reduce((x,y)=>x+y,0);
   h+=`<section class="sec"><h2>Players &amp; handicap index</h2><div class="card">
-    <div class="plrow hint"><span>Name</span><span>Index</span><span>Team</span><span></span></div>`;
+    <div class="plrow hint" ${TM?"":`style="grid-template-columns:minmax(0,1fr) 72px 36px"`}><span>Name</span><span>Index</span>${TM?"<span>Team</span>":""}<span></span></div>`;
   for(const [id,p] of pl){
-    h+=`<div class="plrow"><input id="pn-${esc(id)}" type="text" value="${esc(p.name)}" data-set="player:${esc(id)}:name" aria-label="Name" ${dis}>
+    h+=`<div class="plrow" ${TM?"":`style="grid-template-columns:minmax(0,1fr) 72px 36px"`}><input id="pn-${esc(id)}" type="text" value="${esc(p.name)}" data-set="player:${esc(id)}:name" aria-label="Name" ${dis}>
       <input id="pi-${esc(id)}" type="number" step="0.1" inputmode="decimal" value="${esc(p.index??"")}" data-set="player:${esc(id)}:index" aria-label="Handicap index" ${dis}>
-      <select id="pt-${esc(id)}" data-set="player:${esc(id)}:team" aria-label="Team" ${dis}><option value="">Unassigned</option><option value="t1" ${p.team==="t1"?"selected":""}>${esc(teamName("t1"))}</option><option value="t2" ${p.team==="t2"?"selected":""}>${esc(teamName("t2"))}</option></select>
+      ${TM?`<select id="pt-${esc(id)}" data-set="player:${esc(id)}:team" aria-label="Team" ${dis}><option value="">Unassigned</option><option value="t1" ${p.team==="t1"?"selected":""}>${esc(teamName("t1"))}</option><option value="t2" ${p.team==="t2"?"selected":""}>${esc(teamName("t2"))}</option></select>`:""}
       ${S.readOnly?"<span></span>":S.confirm==="p:"+id?`<button class="x" data-act="delplayer" data-id="${esc(id)}" aria-label="Confirm remove" style="color:var(--warn);font-size:13px">Sure?</button>`:`<button class="x" data-act="askdel" data-id="p:${esc(id)}" aria-label="Remove ${esc(p.name)}">×</button>`}</div>`;
   }
   h+=`${S.readOnly?"":`<button class="btn" data-act="addplayer">Add player</button>`}
-    <p class="hint">${["t1","t2"].map(t=>`${esc(teamName(t))}: ${tot[t].length} players, index total ${sum(tot[t]).toFixed(1)}${tot[t].length?` (avg ${(sum(tot[t])/tot[t].length).toFixed(1)})`:""}`).join(" · ")}</p></div></section>`;
+    <p class="hint" ${TM?"":"hidden"}>${["t1","t2"].map(t=>`${esc(teamName(t))}: ${tot[t].length} players, index total ${sum(tot[t]).toFixed(1)}${tot[t].length?` (avg ${(sum(tot[t])/tot[t].length).toFixed(1)})`:""}`).join(" · ")}</p></div></section>`;
 
   h+=`<section class="sec"><h2>Courses</h2><p class="hint">Course handicap = Index × Slope ÷ 113 + (Rating − Par), rounded. Until rating and slope are in, the app uses the index rounded and marks results as estimated.</p>`;
   // scheduled courses first, then other courses we keep cards for (ready if plans change)
@@ -1201,6 +1223,7 @@ document.addEventListener("change",e=>{
     if(kind==="team")updDoc("setup/main",{teams:{[id]:{name:v.trim()||(id==="t1"?"Team 1":"Team 2")}}});
     else if(kind==="skins")updDoc("setup/main",{skins:{[id]:id==="offLow"||id==="carry"||id==="on"?v==="1":id==="allow"?(num(v)??100):(num(v)||0)}});
     else if(kind==="choke")updDoc("setup/main",{choke:v==="1"});
+    else if(kind==="noteams")updDoc("setup/main",{noTeams:v==="1"});
     else if(kind==="allow")updDoc("setup/main",{allowances:{[id]:num(v)??DEFAULT_ALLOW[id]}});
     else if(kind==="player")updDoc("players/"+id,{[field]:field==="index"?num(v):field==="name"?v.trim():v});
     else if(kind==="teesel"){
