@@ -1,0 +1,10 @@
+-- ShipStiffs, Bandon Warm-ups: card yardages for Bandon Crossings, Shorty's and the Preserve,
+-- and the tee names for Shorty's and the Preserve. Only updates courses the event already has;
+-- new rounds get all of this automatically. Paste into Supabase > SQL Editor > Run. Safe to run again.
+update public.docs set data = data || '{"yards":{"Black":[420,375,420,495,545,235,430,455,175,390,195,535,575,190,355,325,170,570],"Blue":[375,345,400,475,505,210,355,425,155,360,165,500,495,180,335,315,130,545],"Blue/White":[340,345,375,475,505,175,335,395,145,325,165,500,495,155,335,315,130,495],"White":[340,325,375,455,470,175,335,395,145,325,135,465,470,155,310,300,110,495],"White/Red":[310,325,325,455,470,175,275,370,145,275,135,420,400,120,310,300,110,410],"Red":[310,300,325,430,445,155,275,370,120,275,115,420,400,120,260,215,60,410],"Gold":[253,245,255,294,334,153,223,274,117,250,112,359,306,120,259,214,58,343]}}'::jsonb
+where collection = 'bandon-crossings.courses' and id = 'crossings';
+update public.docs set data = jsonb_build_object('tees', 'Middle') || data || '{"yards":{"Back":[119,124,85,80,117,84,114,104,72,101,148,133,152,161,51,123,80,92,57],"Middle":[99,101,69,70,96,54,101,92,61,82,130,111,126,140,51,101,62,81,46],"Front":[80,80,54,56,64,45,87,63,50,74,107,91,84,111,49,64,42,69,39],"Putting":[48,54,54,42,48,38,56,63,50,44,50,75,74,51,35,47,42,69,39]},"teeSets":[{"name":"Back"},{"name":"Middle"},{"name":"Front"},{"name":"Putting"}]}'::jsonb
+where collection = 'bandon-crossings.courses' and id = 'shortys';
+update public.docs set data = jsonb_build_object('tees', 'Back') || data || '{"yards":{"Back":[134,150,87,118,142,131,147,63,134,120,142,132,109],"Front":[90,93,65,83,95,77,119,40,88,93,95,108,75]},"teeSets":[{"name":"Back"},{"name":"Front"}]}'::jsonb
+where collection = 'bandon-crossings.courses' and id = 'preserve';
+select id, data->>'tees' as tees, jsonb_object_keys(data->'yards') as card_tees from public.docs where collection = 'bandon-crossings.courses' order by id;
