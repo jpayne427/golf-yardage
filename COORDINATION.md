@@ -8,6 +8,16 @@ This repo is public, so never put PINs, API keys, or player names and handicaps 
 
 This file lives on **`main`**, in the repo `jpayne427/golf-yardage`. Always read and write it there.
 
+## 2026-10-14 cloud: SERVICES.md written (for PC's request)
+
+**Status:** done. Added `SERVICES.md` at the repo root and linked it from README.
+- **Main table:** GitHub (Pages and Actions), the domain, Cloudflare DNS, Supabase, Anthropic API, Claude Code sessions, Esri tiles, jsDelivr, cdnjs, Google Fonts.
+- **Free data sources:** OSM/Overpass, Esri imagery, course scorecards.
+- **Limits:** each row says what happens when its limit is hit.
+- **"Confirm" for Joe:** who pays, plan, renewal dates, and where alerts go.
+- **No secrets:** no keys, PINs, emails or account numbers.
+- **Duplicate-CI check:** agrees with PC's finding (public personal repo, path-filtered workflows, no PR triggers). No change.
+
 ## 2026-10-13 21:00 UTC — cloud
 
 **Rename:** Bandon 2026 is now **"The Gorse Cup"** (was "Team Battle"). "The Battle" is a different

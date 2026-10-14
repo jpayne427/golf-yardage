@@ -6,3 +6,4 @@ Golf-trip app for the group: live team scoring (match play, Stableford, skins) a
 - `/map/` – satellite yardage map with GPS, tap-for-yards, and front/middle/back of each green. Deep link a hole with `map/#oldmac-7` (course ids: sheep, trails, oldmac, dunes, pacific).
 - `greens.json` – green and tee positions, rebuilt from OpenStreetMap by the "Build greens" GitHub Action (`tools/build_greens.py`). Hand-marked greens (no `"src": "osm"`) are kept.
 - `brand/` – logo and app icons.
+- `SERVICES.md` – every outside service the app uses (GitHub, the domain, Supabase, the Anthropic API, map tiles and so on), who pays, and the limits that matter.
