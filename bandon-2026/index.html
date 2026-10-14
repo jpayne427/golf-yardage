@@ -1141,7 +1141,7 @@ document.addEventListener("click",e=>{
     case"changepin":changePin();break;
     case"holes":{const m=S.matches[S.openMatch];const [a,z]=b.dataset.r.split("-").map(Number);if(m)updDoc("matches/"+m.id,{from:a,to:z});break}
     case"newevent":createEvent();break;
-    case"neadd":if(S.newEv&&S.newEv.players.length<8){S.newEv.players.push({name:"",index:""});render()}break;
+    case"neadd":if(S.newEv&&S.newEv.players.length<24){S.newEv.players.push({name:"",index:""});render()}break;
     case"nedrop":if(S.newEv&&S.newEv.players.length>2){S.newEv.players.pop();render()}break;
     case"addtee":{const cid=b.dataset.id,c=S.courses[cid]||{};S.openCourse=cid;updDoc("courses/"+cid,{teeSets:[...teeSetsOf(c),{name:"New tees",rating:null,slope:null,par:num(c.par)}]});break}
     case"deltee":{const [cid,i]=b.dataset.id.split(":"),c=S.courses[cid]||{},ts=teeSetsOf(c).filter((_,k)=>k!==+i);S.openCourse=cid;updDoc("courses/"+cid,{teeSets:ts});break}
@@ -1270,7 +1270,7 @@ function makeStore(sb){
 /* ---------- first-run setup for a new event ---------- */
 const NEW_EVENT_DEFAULTS={
   redtail:{name:"RedTail Test Drive",rounds:[{course:"RedTail Golf Center",day:"Sun 10/11"}]},
-  "bandon-crossings":{name:"Bandon Warm-ups",rounds:[{course:"Bandon Crossings",day:"Thu 10/15",holes:18},{course:"Shorty's",day:"Fri 10/16 AM",holes:19}]}
+  "bandon-crossings":{name:"Bandon Warm-ups"}
 };
 // course cards we already know, filled in when an event is created
 const KNOWN_COURSES={
@@ -1280,53 +1280,32 @@ const KNOWN_COURSES={
 };
 const courseId=name=>(name.toLowerCase().match(/[a-z0-9]+/g)||["course"]).join("").replace(/golf(center|club|course|links)?$/,"").replace(/^bandon(?=(crossings|preserve)$)/,"")||"course";
 function renderNewEvent(){
-  const d=S.newEv||(S.newEv={name:"",rounds:[{course:"",day:"",holes:18}],...structuredClone(NEW_EVENT_DEFAULTS[EVENT]||{}),players:[{name:"",index:""},{name:"",index:""}],holes:"all",format:"singles_mp"});
-  const games=Object.entries(FORMATS).filter(([,v])=>v.side===1);
-  const two=d.players.length===2;
-  return`<section class="sec"><h2>Set up this event</h2><p class="hint">${two?"Add the two players and the course.":"Add everyone who might play. Next you'll add each round: the course, who's playing it, and any side games."} You can change any of this later on the Setup and Matches tabs.</p>
+  const d=S.newEv||(S.newEv={name:NEW_EVENT_DEFAULTS[EVENT]?.name||"",players:Array.from({length:4},()=>({name:"",index:""}))});
+  return`<section class="sec"><h2>Set up this event</h2><p class="hint">Name it and add everyone who might play. After that you'll add each round as it comes together: the course, who's playing, and any side games.</p>
   ${S.readOnly?`<div class="banner" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span>Enter the PIN to create it.</span><button class="btn primary" data-act="pin" style="padding:8px 12px">Enter PIN</button></div>`:""}
   <div class="card">
     <div class="field"><label for="ne-name">Event name</label><input id="ne-name" type="text" value="${esc(d.name)}" data-ne="name"></div>
-    ${!two?"":d.rounds.slice(0,1).map((r,i)=>{const kn=KNOWN_COURSES[courseId(r.course||"")],n=kn?kn.holes:(num(r.holes)||18),std=n===18||n===9;return`<div class="grid2"><div class="field"><label for="ne-course${i}">Course</label><input id="ne-course${i}" type="text" value="${esc(r.course)}" data-ner="${i}:course"></div>
-    <div class="field"><label for="ne-day${i}">Day</label><input id="ne-day${i}" type="text" value="${esc(r.day)}" data-ner="${i}:day"></div></div>
-    <div class="grid2"><div class="field"><label for="ne-holes${i}">Holes on this course</label><select id="ne-holes${i}" data-nerh="${i}" ${kn?"disabled":""}><option value="18" ${n===18?"selected":""}>18 holes</option><option value="9" ${n===9?"selected":""}>9 holes</option><option value="other" ${std?"":"selected"}>Other…</option></select></div>
-    ${std?`<div></div>`:`<div class="field"><label for="ne-hn${i}">How many</label><input id="ne-hn${i}" type="number" inputmode="numeric" min="1" max="36" value="${n}" data-ner="${i}:holes" ${kn?"disabled":""}></div>`}</div>
-    <p class="hint" id="ne-kn${i}" style="margin:0">${kn?`${esc(kn.name)}: ${kn.holes} holes, ${kn.gross?"played gross":"net"}. Course card filled in for you.`:""}</p>`}).join("")}
     ${d.players.map((p,i)=>`<div class="plrow" style="grid-template-columns:minmax(0,1fr) 80px"><div class="field"><label for="ne-p${i}">Player ${i+1}</label><input id="ne-p${i}" type="text" placeholder="Name" value="${esc(p.name)}" data-nep="${i}:name"></div><div class="field"><label for="ne-i${i}">Index</label><input id="ne-i${i}" type="number" step="0.1" inputmode="decimal" value="${esc(p.index)}" data-nep="${i}:index"></div></div>`).join("")}
-    <div style="display:flex;gap:8px">${d.players.length<8?`<button class="btn" data-act="neadd">Add a player</button>`:""}${d.players.length>2?`<button class="btn" data-act="nedrop">Remove last</button>`:""}</div>
-    ${two?`<div class="field"><label for="ne-holes">Holes</label><select id="ne-holes" data-ne="holes">${(()=>{const r0=d.rounds[0]||{},n=KNOWN_COURSES[courseId(r0.course||"")]?.holes||num(r0.holes)||18;return n===18?[["1-9","Front 9"],["10-18","Back 9"],["all","18 holes"]]:[["all",`All ${n} holes`]]})().map(([v,l])=>`<option value="${v}" ${d.holes===v?"selected":""}>${l}</option>`).join("")}</select></div>
-    <div class="field"><label for="ne-format">Game</label><select id="ne-format" data-ne="format">${games.map(([k,v])=>`<option value="${k}" ${d.format===k?"selected":""}>${v.label}</option>`).join("")}</select></div>
-    <p class="hint" style="margin:0">${esc(ALLOW_NOTE[d.format]||"")}</p>`:`<p class="hint" style="margin:0">With ${d.players.length} players, rounds, matches and side games are set up after you create the event.</p>`}
+    <div style="display:flex;gap:8px">${d.players.length<24?`<button class="btn" data-act="neadd">Add a player</button>`:""}${d.players.length>2?`<button class="btn" data-act="nedrop">Remove last</button>`:""}</div>
+    <p class="hint" style="margin:0">Leave extra rows blank. You can add or change players later on the Setup tab.</p>
     <button class="btn primary" data-act="newevent" ${S.readOnly?"disabled":""}>Create event</button>
   </div></section>`;
 }
 document.addEventListener("input",e=>{const ds=e.target.dataset||{};if(!S.newEv)return;
   if(ds.ne)S.newEv[ds.ne]=e.target.value;
-  if(ds.nep){const [i,k]=ds.nep.split(":");S.newEv.players[+i][k]=e.target.value}
-  if(ds.ner){const [i,k]=ds.ner.split(":");S.newEv.rounds[+i][k]=k==="holes"?num(e.target.value):e.target.value;if(k==="course")neKnown(+i)}});
-document.addEventListener("change",e=>{const i=e.target.dataset&&e.target.dataset.nerh;if(i==null||!S.newEv)return;const v=e.target.value;S.newEv.rounds[+i].holes=v==="other"?(num(S.newEv.rounds[+i].holes)>0&&![9,18].includes(num(S.newEv.rounds[+i].holes))?num(S.newEv.rounds[+i].holes):12):num(v);document.activeElement?.blur();render();if(v==="other")setTimeout(()=>{const f=$("#ne-hn"+i);if(f){f.focus();f.select()}},0)});
-// typing a course we know (Shorty's, the Preserve) sets its holes in place, without redrawing under the keyboard
-function neKnown(i){const r=S.newEv?.rounds[i];if(!r)return;const kn=KNOWN_COURSES[courseId(r.course||"")],sel=$("#ne-holes"+i),hint=$("#ne-kn"+i);
-  if(sel){sel.disabled=!!kn;if(kn)sel.value=kn.holes===18?"18":kn.holes===9?"9":"other"}
-  if(hint)hint.textContent=kn?`${kn.name}: ${kn.holes} holes, ${kn.gross?"played gross":"net"}. Course card filled in for you.`:"";}
-document.addEventListener("change",e=>{const k=e.target.dataset&&e.target.dataset.ne;if(k&&S.newEv){S.newEv[k]=e.target.value;if(k==="format")render()}});
+  if(ds.nep){const [i,k]=ds.nep.split(":");S.newEv.players[+i][k]=e.target.value}});
 async function createEvent(){
   const d=S.newEv;if(!d||S.readOnly)return;
-  const ps=d.players.map(p=>({name:p.name.trim(),index:num(p.index)}));
-  if(ps.some(p=>!p.name)){toast("Add every player's name, or remove the empty rows.");return}
+  const ps=d.players.map(p=>({name:p.name.trim(),index:num(p.index)})).filter(p=>p.name);
+  if(ps.length<2){toast("Add at least two players.");return}
   const two=ps.length===2;
-  const rs=(two?d.rounds.slice(0,1):[]).map((r,i)=>({id:"r"+(i+1),course:courseId(r.course),name:r.course.trim()||"Round "+(i+1),day:r.day.trim(),holes:KNOWN_COURSES[courseId(r.course)]?.holes||num(r.holes)||18}));
-  const cid=rs[0]?.course;
   const writes=[
-    ["setup/main",{name:d.name.trim()||"Test Event",teams:two?{t1:{name:ps[0].name},t2:{name:ps[1].name}}:{t1:{name:"Team 1"},t2:{name:"Team 2"}},allowances:{...DEFAULT_ALLOW},rounds:rs.map(({holes,...r})=>r)}],
+    ["setup/main",{name:d.name.trim()||"Golf trip",teams:two?{t1:{name:ps[0].name},t2:{name:ps[1].name}}:{t1:{name:"Team 1"},t2:{name:"Team 2"}},allowances:{...DEFAULT_ALLOW},rounds:[]}],
     ...ps.map((p,i)=>["players/p"+(i+1),{name:p.name,index:p.index,team:two?(i?"t2":"t1"):""}]),
   ];
-  if(two){const [from,to]=d.holes==="all"?[1,rs[0].holes]:d.holes.split("-").map(Number);
-    writes.push(["matches/m1",{n:1,round:"r1",from,to,group:"",label:"1v1",format:d.format,pts:1,t1:["p1"],t2:["p2"],manual:null,note:""}])}
-  for(const r of rs)if(!S.courses[r.course]&&!writes.some(w=>w[0]==="courses/"+r.course))writes.push(["courses/"+r.course,KNOWN_COURSES[r.course]?{...KNOWN_COURSES[r.course]}:{name:r.name,holes:r.holes}]);
   for(const [path,data] of writes)await write(()=>S.db.doc(path).set(data));
-  S.tab=two?"setup":"matches";S.openCourse=cid;ls.set(navKey("tab"),S.tab);if(!two)S.rd=roundDraft(null);render();
-  toast(two?"Event created. Next: scan the scorecard on Setup.":"Event created. Now add the first round.");
+  S.tab="matches";ls.set(navKey("tab"),S.tab);S.rd=roundDraft(null);render();
+  toast("Event created. Now add the first round.");
 }
 
 /* ---------- scorecard scanner ---------- */
