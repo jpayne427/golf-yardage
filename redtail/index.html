@@ -672,7 +672,7 @@ function renderSetup(){
     <p class="hint"><b>Choke index:</b> ${chokeRules()}</p>
     <p class="hint" style="margin:0">Smaller games for just one round or one group are added on the Games tab.</p>
     ${sk.on?`<div class="grid2"><div class="field"><label for="sk-allow">Allowance %</label><input id="sk-allow" type="number" inputmode="numeric" value="${esc(sk.allow)}" data-set="skins:allow" ${dis}></div>
-    <div class="field"><label for="sk-buy">Buy-in per player per round ($)</label><input id="sk-buy" type="number" inputmode="decimal" value="${esc(sk.buyin||"")}" placeholder="0" data-set="skins:buyin" ${dis}></div></div>
+    <div class="field"><label for="sk-buy">Buy-in per player per hole ($)</label><input id="sk-buy" type="number" inputmode="decimal" value="${esc(sk.buyin||"")}" placeholder="0" data-set="skins:buyin" ${dis}></div></div>
     <div class="grid2"><div class="field"><label for="sk-low">Strokes</label><select id="sk-low" data-set="skins:offLow" ${dis}><option value="0" ${!sk.offLow?"selected":""}>Full strokes</option><option value="1" ${sk.offLow?"selected":""}>Off the low player</option></select></div>
     <div class="field"><label for="sk-carry">Ties</label><select id="sk-carry" data-set="skins:carry" ${dis}><option value="1" ${sk.carry?"selected":""}>Carry over</option><option value="0" ${!sk.carry?"selected":""}>No skin, no carry</option></select></div></div>
     <p class="hint">Everyone playing the round is in. Lowest net score on a hole wins it outright; picked-up holes can't win.</p>`:""}</div></section>`;
@@ -719,7 +719,7 @@ function computeSkins(round,o){   // o: a per-round skins game's own players and
     else{row.state="tie";row.net=best;row.tied=top.map(x=>x.p);if(cfg.carry)carry++}
     out.holes.push(row);
   }
-  out.carry=carry;out.pot=(num(cfg.buyin)||0)*out.players.length;
+  out.carry=carry;out.per=(num(cfg.buyin)||0)*out.players.length;out.pot=out.per*nHoles(c);   // each hole is worth everyone's buy-in for that hole
   return out;
 }
 function renderGames(){
@@ -730,14 +730,14 @@ function renderGames(){
   h+=renderGameList(r);
   const choke=S.setup?.choke?renderChoke():"";
   if(!cfg.on)return h+choke+(cfg.on||S.setup?.choke?"":`<p class="hint">Trip-wide skins and the choke index are off. Turn them on in Setup if the whole group is playing them.</p>`);
-  h+=`<section class="sec"><div class="rhead"><h2>Trip skins</h2><span class="hint">${num(cfg.allow)??100}% hcp${cfg.offLow?" off low":", full strokes"} · ${cfg.carry?"carryovers":"no carryovers"}${num(cfg.buyin)?` · ${money(num(cfg.buyin))} buy-in`:""}</span></div></section>`;
+  h+=`<section class="sec"><div class="rhead"><h2>Trip skins</h2><span class="hint">${num(cfg.allow)??100}% hcp${cfg.offLow?" off low":", full strokes"} · ${cfg.carry?"carryovers":"no carryovers"}${num(cfg.buyin)?` · ${money(num(cfg.buyin))} a hole each`:""}</span></div></section>`;
   if(!K.ready)return h+`<div class="empty">Skins start once ${esc(r.name)} has pars and stroke indexes on Setup.</div>`+choke;
   if(K.players.length<2)return h+`<div class="empty">Skins start once players are assigned to ${esc(r.name)} matches.</div>`+choke;
-  const per=K.skins?K.pot/K.skins:0;
+  const per=K.per;
   const ranked=K.players.map(p=>({p,n:K.won[p]||0})).sort((a,b)=>b.n-a.n||String(S.players[a.p].name).localeCompare(S.players[b.p].name));
   h+=`<section class="sec"><div class="tbl"><table><thead><tr><th>Player</th><th class="r">Strokes</th><th class="r">Skins</th>${K.pot?`<th class="r">Won</th>`:""}</tr></thead><tbody>`;
   for(const x of ranked){const t=S.players[x.p].team;h+=`<tr><td><span class="tdot ${t||"none"}"></span>${esc(S.players[x.p].name)}</td><td class="r num">${K.ph[x.p]}</td><td class="r num"><b>${x.n||"–"}</b></td>${K.pot?`<td class="r num">${x.n?money(x.n*per):"–"}</td>`:""}</tr>`}
-  h+=`</tbody></table></div><p class="hint">${K.skins} skin${K.skins===1?"":"s"} won through ${K.done} complete hole${K.done===1?"":"s"}${K.carry?` · ${K.carry} carrying over`:""}${K.pot?` · pot ${money(K.pot)}, ${K.skins?money(per)+" per skin so far":"no skins yet"}`:""}${K.est?" · strokes estimated until rating/slope are in":""}. A hole is decided once all ${K.players.length} players have a score.</p></section>`;
+  h+=`</tbody></table></div><p class="hint">${K.skins} skin${K.skins===1?"":"s"} won through ${K.done} complete hole${K.done===1?"":"s"}${K.carry?` · ${K.carry} carrying over`:""}${K.pot?` · ${money(per)} a hole (${money(K.pot)} for the round)`:""}${K.est?" · strokes estimated until rating/slope are in":""}. A hole is decided once all ${K.players.length} players have a score.</p></section>`;
   h+=`<section class="sec"><h3>Hole by hole</h3><div class="mlist">`;
   for(const x of K.holes){
     let res;
@@ -748,7 +748,7 @@ function renderGames(){
   }
   h+=`</div>${K.carry&&K.done===roundHoles(r.id)?`<p class="hint">${K.carry} skin${K.carry>1?"s":""} still tied after ${K.done}. Settle it however the group likes.</p>`:""}</section>`;
   // trip totals
-  const trip={};rs.forEach(x=>{const k=computeSkins(x.id);const pp=k.skins?k.pot/k.skins:0;Object.entries(k.won).forEach(([p,n])=>{const t=trip[p]||(trip[p]={n:0,$:0});t.n+=n;t.$+=n*pp})});
+  const trip={};rs.forEach(x=>{const k=computeSkins(x.id);const pp=k.per;Object.entries(k.won).forEach(([p,n])=>{const t=trip[p]||(trip[p]={n:0,$:0});t.n+=n;t.$+=n*pp})});
   const tl=Object.entries(trip).sort((a,b)=>b[1].n-a[1].n);
   if(tl.length){h+=`<section class="sec"><h3>Trip total</h3><div class="tbl"><table><tbody>${tl.map(([p,t])=>`<tr><td><span class="tdot ${S.players[p]?.team||"none"}"></span>${esc(S.players[p]?.name||"")}</td><td class="r num">${t.n} skin${t.n===1?"":"s"}</td>${num(cfg.buyin)?`<td class="r num">${money(t.$)}</td>`:""}</tr>`).join("")}</tbody></table></div></section>`}
   return h+choke;
@@ -759,7 +759,7 @@ const GAMES={
   nassau:{label:"Nassau",sides:true,max:2,blurb:"Front 9, back 9 and overall 18 are separate bets (on other course lengths, the first half, second half and all holes). Better net ball per side. A new bet (press) starts automatically whenever a side goes down by the press number in a bet, and runs to the end of that nine."},
   nines:{label:"Nine-point",sides:false,min:3,max:4,blurb:"9 points a hole: best net score 5, second 3, third 1 (5-3-1-0 with four). Ties split the points. Settle on the point difference."},
   hammer:{label:"Hammer",sides:true,max:2,blurb:"Each hole is worth the stake. Either side can hammer to double it; the other side accepts or lays down and pays the value before the hammer. Record the hammers on each hole."},
-  skins:{label:"Skins",sides:false,min:2,max:8,blurb:"A skins game for just these players, just this round. Lowest net score on a hole wins it outright; ties carry over if you choose. The pot is everyone's buy-in, split by skins won."},
+  skins:{label:"Skins",sides:false,min:2,max:8,blurb:"A skins game for just these players, just this round. Lowest net score on a hole wins it outright; ties carry over if you choose. Each hole is worth everyone's buy-in for that hole, so a hole that carries is worth double."},
   stableford:{label:"Stableford",sides:false,min:1,max:8,blurb:"Points on every hole from each player's own net score: net double bogey or worse 0, bogey 1, par 2, birdie 3, eagle 4. Full course handicaps, not off the low player. Most points wins. Leave the stake at 0 just to keep track, or play for a stake per point and settle on the point difference."},
   wolf:{label:"Wolf",sides:false,min:3,max:5,blurb:"Pick the players in tee order for hole 1; the wolf rotates every hole. After the tee shots, the wolf picks a partner (better net ball, 2 v the rest) or goes lone wolf against everyone. Declaring blind wolf before anyone tees off doubles it. Partners win: 2 points each; the others win: 3 points each. Lone wolf wins 4 points, or the others get 1 each. Blind wolf wins 6, or the others get 2 each. Halved holes score nothing. Settle on the point difference."},
   vegas:{label:"Vegas",sides:true,min:2,max:2,blurb:"Each team's two net scores make a number, low score first (4 and 5 = 45). A gross birdie flips the other team's number (45 becomes 54). Pay the difference per point. Scores are capped at net double bogey."}
@@ -826,8 +826,8 @@ function computeGame(g){
     out.status=thru?`Thru ${thru} · ${pts?`${teamLabel(g,pts>0?"t1":"t2")} +${Math.abs(pts)} pts`:"even"}`:"Not started";
   }
   if(g.type==="skins"){
-    const K=computeSkins(g.round,{players:X.ps,allow:num(g.allow)??100,offLow:!!g.offLow,carry:g.carry!==false,buyin:stake}),per=K.skins?K.pot/K.skins:0,fin=K.done===X.N;
-    X.ps.forEach(p=>out.money[p]=(K.won[p]||0)*per-(fin?stake:0));out.final=fin;out.ph=K.ph;
+    const K=computeSkins(g.round,{players:X.ps,allow:num(g.allow)??100,offLow:!!g.offLow,carry:g.carry!==false,buyin:stake}),per=K.per,fin=K.done===X.N;
+    X.ps.forEach(p=>out.money[p]=(K.won[p]||0)*per-(fin?stake*X.N:0));out.final=fin;out.ph=K.ph;
     K.holes.forEach(x=>{if(x.state!=="open")out.holes.push({h:x.h,txt:x.state==="won"?`${shortName(x.winner)} · net ${x.net}${x.value>1?` · ${x.value} skins`:""}`:`${x.net==null?"All picked up":`Tied at net ${x.net}`}${g.carry!==false?" · carries":""}`})});
     out.status=K.done?`Thru ${K.done} · ${K.skins} skin${K.skins===1?"":"s"} won${K.carry?` · ${K.carry} carrying`:""}${K.pot?` · ${money(per)}/skin`:""}`:"Not started";
   }
@@ -895,7 +895,7 @@ function renderGameSheet(el){
   else{const lo=T.min||2,hi=T.max||8,n=Math.max(lo,Math.min(hi,(g.players||[]).length||lo));
     h+=`<section class="sec"><h3>${g.type==="wolf"?"Players, in tee order for hole 1":"Players"}</h3><div class="card"><div class="field"><label for="gsz">How many</label><select id="gsz" data-g="size" ${dis}>${Array.from({length:hi-lo+1},(_,i)=>lo+i).map(k=>`<option value="${k}" ${n===k?"selected":""}>${k}${g.type==="nines"?(k===3?" (5-3-1)":" (5-3-1-0)"):""}</option>`).join("")}</select></div>
     ${Array.from({length:n},(_,i)=>`<select data-g="p:${i}" ${dis} style="margin-top:6px">${opts((g.players||[])[i])}</select>`).join("")}</div></section>`}
-  h+=`<section class="sec"><h3>Settings</h3><div class="card"><div class="grid2"><div class="field"><label for="gst">${g.type==="skins"?"Buy-in per player":`Stake ${["vegas","nines","wolf","stableford"].includes(g.type)?"per point":g.type==="hammer"?"per hole":"per bet"}`} ($)</label><input id="gst" type="number" step="0.25" inputmode="decimal" value="${esc(g.stake??"")}" data-g="stake" ${dis}></div>
+  h+=`<section class="sec"><h3>Settings</h3><div class="card"><div class="grid2"><div class="field"><label for="gst">${g.type==="skins"?"Buy-in per player per hole":`Stake ${["vegas","nines","wolf","stableford"].includes(g.type)?"per point":g.type==="hammer"?"per hole":"per bet"}`} ($)</label><input id="gst" type="number" step="0.25" inputmode="decimal" value="${esc(g.stake??"")}" data-g="stake" ${dis}></div>
     <div class="field"><label for="gal">Handicap %</label><input id="gal" type="number" inputmode="numeric" value="${esc(g.allow??100)}" data-g="allow" ${dis}></div></div>
     ${g.type==="nassau"?`<div class="field"><label for="gpr">Automatic press when down</label><select id="gpr" data-g="pressAt" ${dis}>${[2,3].map(v=>`<option value="${v}" ${(num(g.pressAt)||2)===v?"selected":""}>${v} holes</option>`).join("")}</select></div>`:""}
     ${g.type==="skins"?`<div class="grid2"><div class="field"><label for="gol">Strokes</label><select id="gol" data-g="offLow" ${dis}><option value="0" ${!g.offLow?"selected":""}>Full strokes</option><option value="1" ${g.offLow?"selected":""}>Off the low player</option></select></div>
@@ -920,7 +920,7 @@ function renderGameSheet(el){
     if(g.type==="stableford"){const ps=Object.entries(R.pts||{}).sort((a,b)=>b[1]-a[1]);
       h+=`<section class="sec"><h3>Points</h3><div class="tbl"><table><tbody>${ps.map(([p,v])=>`<tr><td>${esc(S.players[p]?.name||"")}</td><td class="r num">${R.X.ph[p]} hcp</td><td class="r num"><b>${v}</b></td></tr>`).join("")}</tbody></table></div></section>`}
     const m=num(g.stake)?Object.entries(R.money):[];
-    if(m.length)h+=`<section class="sec"><h3>Money</h3><div class="tbl"><table><tbody>${m.sort((a,b)=>b[1]-a[1]).map(([p,v])=>`<tr><td>${esc(S.players[p]?.name||"")}</td><td class="r num"><b>${sgn(v)}</b></td></tr>`).join("")}</tbody></table></div><p class="hint">${g.type==="nassau"?"Counts finished bets only. ":g.type==="skins"?(R.final?"Winnings minus the buy-in. ":"Winnings so far; buy-ins come off when the round is done. "):""}Each player settles their own amount.</p></section>`;
+    if(m.length)h+=`<section class="sec"><h3>Money</h3><div class="tbl"><table><tbody>${m.sort((a,b)=>b[1]-a[1]).map(([p,v])=>`<tr><td>${esc(S.players[p]?.name||"")}</td><td class="r num"><b>${sgn(v)}</b></td></tr>`).join("")}</tbody></table></div><p class="hint">${g.type==="nassau"?"Counts finished bets only. ":g.type==="skins"?(R.final?"Winnings minus the buy-ins. ":"Winnings so far; buy-ins (per hole) come off when the round is done. "):""}Each player settles their own amount.</p></section>`;
     if(R.holes.length)h+=`<section class="sec"><h3>Hole by hole</h3><div class="mlist">${R.holes.map(x=>`<div class="lv" style="border:0;border-bottom:1px solid var(--line);border-radius:0"><b class="num">${x.h}</b><span class="hint">${esc(x.txt??(x.res>0?teamLabel(g,"t1"):x.res<0?teamLabel(g,"t2"):"Halved"))}</span></div>`).join("")}</div></section>`;
   }else h+=`<div class="empty">${esc(R.why)}</div>`;
   if(!S.readOnly)h+=`<section class="sec">${S.confirm==="g"+g.id?`<div class="banner">Delete this game? <button class="btn" data-act="delgame" data-id="${esc(g.id)}">Delete</button> <button class="btn" data-act="gcancel">Keep</button></div>`:`<button class="btn" data-act="gconfirm" data-id="${esc(g.id)}">Delete game</button>`}</section>`;
