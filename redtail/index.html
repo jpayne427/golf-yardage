@@ -535,7 +535,20 @@ function renderTotals(r,c,players,G,title){
   if(title)rows.sort((a,b)=>(!a.thru)-(!b.thru)||(a.n-a.par)-(b.n-b.par));
   const tp=v=>v===0?"E":v>0?"+"+v:String(v);
   return`<section class="sec"><h3>${title||(G.matches.length?"Totals":"Scores so far")}</h3><div class="tbl"><table><thead><tr><th>Player</th><th class="r">Hcp</th><th class="r">Thru</th><th class="r">Gross</th><th class="r">Net</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${esc(S.players[x.p].name)}${x.pu?` <span class="hint">PU</span>`:""}</td><td class="r num">${x.ch.missing?"–":x.ch.v+(x.ch.est?"*":"")}</td><td class="r num">${x.thru||"–"}</td><td class="r num">${x.thru?`${x.g} <span class="hint">${tp(x.g-x.par)}</span>`:"–"}</td><td class="r num">${x.thru?`<b>${x.n}</b> <span class="hint">${tp(x.n-x.par)}</span>`:"–"}</td></tr>`).join("")}</tbody></table></div>
-    <p class="hint">Net uses each player's full course handicap${c.gross?" (this course is played gross)":""}. Picked-up holes are left out of the totals.${rows.some(x=>x.ch.est)?" * estimated until the course rating and slope are in.":""}</p></section>`;
+    <p class="hint">Net uses each player's full course handicap${c.gross?" (this course is played gross)":""}. Picked-up holes are left out of the totals.${rows.some(x=>x.ch.est)?" * estimated until the course rating and slope are in.":""}</p></section>`
+    +renderCard(r,c,players,G);
+}
+// the group's scorecard: gross by hole with stroke dots, and the running net to par
+function renderCard(r,c,players,G){
+  const N=nHoles(c),hs=[];for(let x=G.from;x<=G.to;x++)hs.push(x);
+  const tp=v=>v===0?"E":v>0?"+"+v:String(v);
+  let h=`<section class="sec"><details ${S.cardOpen?"open":""} data-card><summary class="hint" style="cursor:pointer;font-weight:600">Scorecard</summary><div class="tbl" style="margin-top:8px"><table class="hbh num"><thead><tr><th>Hole</th>${hs.map(x=>`<th>${x}</th>`).join("")}<th>Tot</th></tr></thead><tbody>`;
+  h+=`<tr><td>Par</td>${hs.map(x=>`<td>${num(c.pars[x-1])??"–"}</td>`).join("")}<td>${hs.reduce((a,x)=>a+(num(c.pars[x-1])||0),0)}</td></tr>`;
+  for(const p of players){const ch=courseHcp(p,c);let g=0,d=0;
+    h+=`<tr><td class="${G.open?"":G.t1.includes(p)?"c1":"c2"}">${esc(shortName(p))}</td>${hs.map(x=>{const v=cardVal(r.id,p,x),st=shotsOn(ch.v,num(c.si[x-1]),N),par=num(c.pars[x-1]);
+      if(v==null)return"<td>·</td>";if(v==="x")return`<td>PU</td>`;g+=v;if(par)d+=v-st-par;
+      return`<td class="${par&&v-st<par?"w1":""}">${v}${st?`<sup>${"•".repeat(st)}</sup>`:""}</td>`}).join("")}<td>${g||"–"}${g?` <span class="hint">${tp(d)}</span>`:""}</td></tr>`}
+  return h+`</tbody></table></div><p class="hint">Dots mark strokes; a shaded score is a net birdie or better. Tot is gross, with net to par beside it.</p></details></section>`;
 }
 function renderScore(){
   const rs=rounds();if(!rs.length)return`<div class="empty">No rounds yet.</div>`;
@@ -1236,7 +1249,7 @@ document.addEventListener("click",e=>{
       serial("matches/"+id,()=>S.db.doc("matches/"+id).set({n,round,from:1,to:roundHoles(round),group:"",label:"",format:"",pts:1,t1:[],t2:[],manual:null,note:""})).then(()=>{S.openMatch=id;render()});break}
   }
 });
-document.addEventListener("toggle",e=>{const d=e.target;if(d.matches&&d.matches("details[data-course]")&&d.open)S.openCourse=d.dataset.course},true);
+document.addEventListener("toggle",e=>{const d=e.target;if(d.matches&&d.matches("details[data-course]")&&d.open)S.openCourse=d.dataset.course;if(d.matches&&d.matches("details[data-card]"))S.cardOpen=d.open},true);
 document.addEventListener("change",e=>{
   const el=e.target;
   if(el.dataset.set){
