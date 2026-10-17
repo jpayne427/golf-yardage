@@ -178,6 +178,11 @@ details.card[open]>summary::after{content:"－"}
 .hbh .w1{background:var(--t1-soft);color:var(--t1);font-weight:600}
 .hbh .w2{background:var(--t2-soft);color:var(--t2);font-weight:600}
 .hbh sup{color:var(--accent);font-size:9px}
+.hbh .g{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;line-height:1;box-sizing:border-box}
+.hbh .g.b1{border:1.5px solid currentColor;border-radius:50%}
+.hbh .g.b2{border:1.5px solid currentColor;border-radius:50%;box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px currentColor}
+.hbh .g.o1{border:1.5px solid currentColor;border-radius:3px}
+.hbh .g.o2{border:1.5px solid currentColor;border-radius:3px;box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px currentColor}
 .result{display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px;border-radius:14px;background:var(--surface);border:1px solid var(--line)}
 .result .rt{font-family:var(--f-display);font-weight:800;font-size:30px;text-transform:uppercase;line-height:1.05;text-align:center}
 .result.t1{background:var(--t1-soft)} .result.t1 .rt{color:var(--t1)}
@@ -547,7 +552,8 @@ function renderCard(r,c,players,G){
   for(const p of players){const ch=courseHcp(p,c);let g=0,d=0;
     h+=`<tr><td class="${G.open?"":G.t1.includes(p)?"c1":"c2"}">${esc(shortName(p))}</td>${hs.map(x=>{const v=cardVal(r.id,p,x),st=shotsOn(ch.v,num(c.si[x-1]),N),par=num(c.pars[x-1]);
       if(v==null)return"<td>·</td>";if(v==="x")return`<td>PU</td>`;g+=v;if(par)d+=v-st-par;
-      return`<td class="${par&&v-st<par?"w1":""}">${v}${st?`<sup>${"•".repeat(st)}</sup>`:""}</td>`}).join("")}<td>${g||"–"}${g?` <span class="hint">${tp(d)}</span>`:""}</td></tr>`}
+      const gd=par?v-par:0,mk=gd<=-2?"b2":gd===-1?"b1":gd===1?"o1":gd>=2?"o2":"";
+      return`<td class="${par&&v-st<par?"w1":""}"><span class="g ${mk}">${v}</span>${st?`<sup>${"•".repeat(st)}</sup>`:""}</td>`}).join("")}<td>${g||"–"}${g?` <span class="hint">${tp(d)}</span>`:""}</td></tr>`}
   return h+`</tbody></table></div><p class="hint">Dots mark strokes; a shaded score is a net birdie or better. Tot is gross, with net to par beside it.</p></details></section>`;
 }
 function renderScore(){
