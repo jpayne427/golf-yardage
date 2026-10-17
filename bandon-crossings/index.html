@@ -761,9 +761,14 @@ function renderGames(){
   }
   h+=`</div>${K.carry&&K.done===roundHoles(r.id)?`<p class="hint">${K.carry} skin${K.carry>1?"s":""} still tied after ${K.done}. Settle it however the group likes.</p>`:""}</section>`;
   // trip totals
-  const trip={};rs.forEach(x=>{const k=computeSkins(x.id);const pp=k.per;Object.entries(k.won).forEach(([p,n])=>{const t=trip[p]||(trip[p]={n:0,$:0});t.n+=n;t.$+=n*pp})});
-  const tl=Object.entries(trip).sort((a,b)=>b[1].n-a[1].n);
-  if(tl.length){h+=`<section class="sec"><h3>Trip total</h3><div class="tbl"><table><tbody>${tl.map(([p,t])=>`<tr><td><span class="tdot ${S.players[p]?.team||"none"}"></span>${esc(S.players[p]?.name||"")}</td><td class="r num">${t.n} skin${t.n===1?"":"s"}</td>${num(cfg.buyin)?`<td class="r num">${money(t.$)}</td>`:""}</tr>`).join("")}</tbody></table></div></section>`}
+  // trip total: skins and winnings per player, and net once a round is done (buy-ins only for holes that were won)
+  const trip={},stake=num(cfg.buyin)||0;let left=0;
+  rs.forEach(x=>{const k=computeSkins(x.id);if(!k.ready)return;const fin=k.done===roundHoles(x.id);
+    k.players.forEach(p=>{const t=trip[p]||(trip[p]={n:0,$:0,net:0,paid:0});const n=k.won[p]||0;t.n+=n;t.$+=n*k.per;t.net+=n*k.per;if(fin){t.net-=stake*k.skins;t.paid+=k.skins}});
+    if(fin)left+=k.carry});
+  const tl=Object.entries(trip).filter(([,t])=>t.n||t.paid).sort((a,b)=>b[1].net-a[1].net||b[1].n-a[1].n);
+  if(tl.length){h+=`<section class="sec"><h3>Trip total</h3><div class="tbl"><table><thead><tr><th>Player</th><th class="r">Skins</th>${stake?`<th class="r">Won</th><th class="r">Net</th>`:""}</tr></thead><tbody>${tl.map(([p,t])=>`<tr><td><span class="tdot ${S.players[p]?.team||"none"}"></span>${esc(S.players[p]?.name||"")}</td><td class="r num">${t.n}</td>${stake?`<td class="r num">${money(t.$)}</td><td class="r num"><b>${sgn(t.net)}</b></td>`:""}</tr>`).join("")}</tbody></table></div>
+    ${stake?`<p class="hint">Net is winnings minus buy-ins for the holes that were won, counted once a round is done${left?` (${left} carried hole${left>1?"s":""} at the end of a round left out)`:""}. Each player settles their own amount.</p>`:""}</section>`}
   return h+choke;
 }
 
