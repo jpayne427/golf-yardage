@@ -264,9 +264,9 @@ const DEFAULT_ALLOW={singles_mp:100,fourball_mp:90,individual_sf:100,fourball_sf
 const ALLOW_NOTE={
   singles_mp:"Low player plays off 0; the other gets the difference.",
   fourball_mp:"All four play off the low man.",
-  individual_sf:"Full strokes, net Stableford points per hole.",
-  fourball_sf:"Full strokes. Team takes the better net points per hole.",
-  combined_sf:"Full strokes. Team adds both players' net points.",
+  individual_sf:"Full strokes. Points per hole from the net score: eagle 4, birdie 3, par 2, bogey 1, double bogey or worse 0.",
+  fourball_sf:"Full strokes. Team takes the better net points per hole. Points per hole from the net score: eagle 4, birdie 3, par 2, bogey 1, double bogey or worse 0.",
+  combined_sf:"Full strokes. Team adds both players' net points. Points per hole from the net score: eagle 4, birdie 3, par 2, bogey 1, double bogey or worse 0.",
   stroke_net:"Full strokes. Lowest net total wins; a pick-up counts as net double bogey.",
   scorecard:"No winner, just gross and net totals."
 };
@@ -1115,7 +1115,7 @@ function renderSheet(){
       h+=`<tr><td>Best net</td>${res.rows.map(x=>`<td class="${x.won==="t1"?"w1":x.won==="t2"?"w2":""}">${x.counted?`${x.side[0]??"–"}·${x.side[1]??"–"}`:""}</td>`).join("")}</tr>`;
       h+=`<tr><td>Match</td>${res.rows.map(x=>`<td class="${x.run>0?"w1":x.run<0?"w2":""}">${x.counted?(x.run===0?"AS":Math.abs(x.run)):""}</td>`).join("")}</tr>`;
     }
-    h+=`</tbody></table></div><p class="hint">Number after each name is the playing handicap for this format${f.kind==="mp"?" (off the low player)":""}. Dots mark strokes received.</p></section>`;
+    h+=`</tbody></table></div><p class="hint">Number after each name is the playing handicap for this format${f.kind==="mp"?" (off the low player)":""}. Dots mark strokes received.${f.kind==="sf"?" Points per hole from the net score: eagle 4, birdie 3, par 2, bogey 1, double bogey or worse 0.":""}</p></section>`;
     // how each playing handicap was worked out: course handicap, the format's allowance, then off the low man for match play
     if(res.ch){const low=f.kind==="mp"?Math.min(...all.map(p=>res.full[p])):null;
       h+=`<section class="sec"><h3>Handicaps</h3><div class="tbl"><table><thead><tr><th>Player</th><th class="r">Course</th><th class="r">At ${res.allow}%</th><th class="r">Strokes</th></tr></thead><tbody>${all.map(p=>`<tr><td class="${res.sides[0].includes(p)?"c1":"c2"}">${esc(shortName(p))}${low!=null&&res.full[p]===low?` <span class="hint">low</span>`:""}</td><td class="r num">${res.ch[p]}</td><td class="r num">${res.full[p]}</td><td class="r num"><b>${res.ph[p]}</b></td></tr>`).join("")}</tbody></table></div>
