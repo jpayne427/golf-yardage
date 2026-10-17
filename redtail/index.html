@@ -840,7 +840,8 @@ function computeGame(g){
   }
   if(g.type==="skins"){
     const K=computeSkins(g.round,{players:X.ps,allow:num(g.allow)??100,offLow:!!g.offLow,carry:g.carry!==false,buyin:stake}),per=K.per,fin=K.done===X.N;
-    X.ps.forEach(p=>out.money[p]=(K.won[p]||0)*per-(fin?stake*X.N:0));out.final=fin;out.ph=K.ph;
+    // buy-ins come off only for holes that were won; skins still carrying at the end are never paid for
+    X.ps.forEach(p=>out.money[p]=(K.won[p]||0)*per-(fin?stake*K.skins:0));out.final=fin;out.ph=K.ph;out.unsettled=fin?K.carry:0;
     K.holes.forEach(x=>{if(x.state!=="open")out.holes.push({h:x.h,txt:x.state==="won"?`${shortName(x.winner)} · net ${x.net}${x.value>1?` · ${x.value} skins`:""}`:`${x.net==null?"All picked up":`Tied at net ${x.net}`}${g.carry!==false?" · carries":""}`})});
     out.status=K.done?`Thru ${K.done} · ${K.skins} skin${K.skins===1?"":"s"} won${K.carry?` · ${K.carry} carrying`:""}${K.pot?` · ${money(per)}/skin`:""}`:"Not started";
   }
@@ -933,7 +934,7 @@ function renderGameSheet(el){
     if(g.type==="stableford"){const ps=Object.entries(R.pts||{}).sort((a,b)=>b[1]-a[1]);
       h+=`<section class="sec"><h3>Points</h3><div class="tbl"><table><tbody>${ps.map(([p,v])=>`<tr><td>${esc(S.players[p]?.name||"")}</td><td class="r num">${R.X.ph[p]} hcp</td><td class="r num"><b>${v}</b></td></tr>`).join("")}</tbody></table></div></section>`}
     const m=num(g.stake)?Object.entries(R.money):[];
-    if(m.length)h+=`<section class="sec"><h3>Money</h3><div class="tbl"><table><tbody>${m.sort((a,b)=>b[1]-a[1]).map(([p,v])=>`<tr><td>${esc(S.players[p]?.name||"")}</td><td class="r num"><b>${sgn(v)}</b></td></tr>`).join("")}</tbody></table></div><p class="hint">${g.type==="nassau"?"Counts finished bets only. ":g.type==="skins"?(R.final?"Winnings minus the buy-ins. ":"Winnings so far; buy-ins (per hole) come off when the round is done. "):""}Each player settles their own amount.</p></section>`;
+    if(m.length)h+=`<section class="sec"><h3>Money</h3><div class="tbl"><table><tbody>${m.sort((a,b)=>b[1]-a[1]).map(([p,v])=>`<tr><td>${esc(S.players[p]?.name||"")}</td><td class="r num"><b>${sgn(v)}</b></td></tr>`).join("")}</tbody></table></div><p class="hint">${g.type==="nassau"?"Counts finished bets only. ":g.type==="skins"?(R.final?`Winnings minus the buy-ins for the holes that were won${R.unsettled?` (${R.unsettled} carried hole${R.unsettled>1?"s":""} at the end left out)`:""}. `:"Winnings so far; buy-ins (per hole) come off when the round is done. "):""}Each player settles their own amount.</p></section>`;
     if(R.holes.length)h+=`<section class="sec"><h3>Hole by hole</h3><div class="mlist">${R.holes.map(x=>`<div class="lv" style="border:0;border-bottom:1px solid var(--line);border-radius:0"><b class="num">${x.h}</b><span class="hint">${esc(x.txt??(x.res>0?teamLabel(g,"t1"):x.res<0?teamLabel(g,"t2"):"Halved"))}</span></div>`).join("")}</div></section>`;
   }else h+=`<div class="empty">${esc(R.why)}</div>`;
   if(!S.readOnly)h+=`<section class="sec">${S.confirm==="g"+g.id?`<div class="banner">Delete this game? <button class="btn" data-act="delgame" data-id="${esc(g.id)}">Delete</button> <button class="btn" data-act="gcancel">Keep</button></div>`:`<button class="btn" data-act="gconfirm" data-id="${esc(g.id)}">Delete game</button>`}</section>`;
