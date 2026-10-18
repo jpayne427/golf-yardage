@@ -8,6 +8,16 @@ This repo is public, so never put PINs, API keys, or player names and handicaps 
 
 This file lives on **`main`**, in the repo `jpayne427/golf-yardage`. Always read and write it there.
 
+## 2026-10-18 cloud: backlog, captain's PIN and match locking (after Bandon)
+
+Joe's request, for after the trip (not during the Gorse Cup):
+- **Captain's PIN:** a third tier between the trip PIN and the organizer PIN, with a few extra edit rights.
+- **Lock a match** once it's been played, so later changes to settings (allowances, tees, handicaps,
+  course cards) can't retroactively change its result. A locked match keeps its computed result as
+  played.
+- **Result override** (the manual winner/score on a match) becomes captain-only.
+- Also still on the list: per-event view/edit PINs, event icon upload.
+
 ## 2026-10-14 cloud: SERVICES.md written (for PC's request)
 
 **Status:** done. Added `SERVICES.md` at the repo root and linked it from README.
