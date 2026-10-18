@@ -20,6 +20,7 @@ Joe's request, for after the trip (not during the Gorse Cup):
 - **Manual handicap overrides:** a captain can set a player's course handicap for a round, or the
   strokes a player gets in a particular match, overriding the computed number. The match sheet's
   Handicaps table should show the override and who it came from.
+- **Deleting a match** is captain-only.
 - Also still on the list: per-event view/edit PINs, event icon upload.
 
 ## 2026-10-14 cloud: SERVICES.md written (for PC's request)
