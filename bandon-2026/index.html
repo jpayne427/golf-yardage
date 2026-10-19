@@ -97,7 +97,7 @@ table{border-collapse:collapse;width:100%}
 .mrow .n{font-family:var(--f-display);font-weight:800;font-size:20px;color:var(--muted);width:26px;text-align:center}
 .mrow .meta{font-size:12px;color:var(--muted)}
 .mrow .who{font-size:14px;min-width:0}
-.mrow .who .vs{color:var(--muted);font-size:12px;padding:0 4px}
+.vs{color:var(--muted);font-size:12px;padding:0 6px;font-weight:400}
 .c1{color:var(--t1);font-weight:600} .c2{color:var(--t2);font-weight:600}
 .pill{font-size:12px;font-weight:600;padding:4px 8px;border-radius:999px;background:var(--sunk);color:var(--muted);white-space:nowrap;justify-self:end;text-align:center;line-height:1.25}
 .pill b{font-weight:700}
@@ -144,6 +144,14 @@ table{border-collapse:collapse;width:100%}
 .btn.danger{color:var(--warn)}
 .btn:disabled{opacity:.4;cursor:default}
 .livebox{display:flex;flex-direction:column;gap:6px}
+.xl{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.xl details{border-bottom:1px solid var(--line)} .xl details:last-child{border-bottom:0}
+.xl summary{list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;font-size:15px}
+.xl summary::-webkit-details-marker{display:none}
+.xl .xh,.xl summary.xr{display:grid;grid-template-columns:minmax(0,1fr) 56px 64px 44px;gap:6px;align-items:center}
+.xl .xh{padding:8px 12px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;border-bottom:1px solid var(--line)}
+.xl .xh span:not(:first-child),.xl summary.xr span.num{text-align:right}
+.xl .xb{padding:0 12px 10px;font-size:13px;color:var(--ink)} .xl .xb>div{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-top:1px dashed var(--line)}
 .lv{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:8px 12px}
 .lv span:first-child{min-width:0}
 
@@ -233,7 +241,7 @@ body{margin:0}
   <button data-tab="score"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>Scores</button>
   <button data-tab="matches"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.8" y="5" width="20.4" height="14" rx="4"/><text x="12" y="16.6" text-anchor="middle" font-family="'Big Shoulders Display','Arial Narrow',Impact,sans-serif" font-weight="800" font-size="11" letter-spacing=".3" fill="currentColor" stroke="none">VS</text></svg>Matches</button>
   <button data-tab="games"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.4 2.5v19M13.6 2.5v19"/><path d="M18.2 7c-.9-1.5-3-2.5-6-2.5-3.5 0-6 1.6-6 3.8 0 5.2 12.2 2.9 12.2 8.4 0 2.3-2.6 3.8-6.3 3.8-3 0-5.4-1-6.4-2.8"/></svg>Games</button>
-  <button data-tab="map"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>Map</button>
+  <button data-tab="map" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>Map</button>
   <button data-tab="setup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.39 5.07 L9.82 2.24 L14.18 2.24 L14.61 5.07 L15.05 5.26 L17.36 3.56 L20.44 6.64 L18.74 8.95 L18.93 9.39 L21.76 9.82 L21.76 14.18 L18.93 14.61 L18.74 15.05 L20.44 17.36 L17.36 20.44 L15.05 18.74 L14.61 18.93 L14.18 21.76 L9.82 21.76 L9.39 18.93 L8.95 18.74 L6.64 20.44 L3.56 17.36 L5.26 15.05 L5.07 14.61 L2.24 14.18 L2.24 9.82 L5.07 9.39 L5.26 8.95 L3.56 6.64 L6.64 3.56 L8.95 5.26Z"/><circle cx="12" cy="12" r="3.1"/></svg>Setup</button>
 </nav>
 <div id="sheet" class="sheet" hidden></div>
@@ -264,9 +272,16 @@ const FORMATS={
   combined_sf:{label:"Combined Stableford",kind:"sf",side:2,team:"sum"},
   individual_sf:{label:"Individual Stableford",kind:"sf",side:1,team:"best"},
   stroke_net:{label:"Stroke Play (net)",kind:"sp",side:1,team:"best"},
+  scramble2_mp:{label:"2-Man Scramble Match Play",kind:"mp",side:2,team:"scramble"},
+  scramble2_sp:{label:"2-Man Scramble (net stroke)",kind:"sp",side:2,team:"scramble"},
+  scramble4_mp:{label:"4-Man Scramble Match Play",kind:"mp",side:4,team:"scramble"},
+  scramble4_sp:{label:"4-Man Scramble (net stroke)",kind:"sp",side:4,team:"scramble"},
   scorecard:{label:"Just keep score",kind:"card",side:1,team:"best"}
 };
-const DEFAULT_ALLOW={singles_mp:100,fourball_mp:90,individual_sf:100,fourball_sf:85,combined_sf:100,stroke_net:95,scorecard:100};
+const DEFAULT_ALLOW={singles_mp:100,fourball_mp:90,individual_sf:100,fourball_sf:85,combined_sf:100,stroke_net:95,scramble2_mp:"35/15",scramble2_sp:"35/15",scramble4_mp:"25/20/15/10",scramble4_sp:"25/20/15/10",scorecard:100};
+// scramble allowances are a percentage per player, lowest course handicap first ("35/15" = 35% of the low man + 15% of the other)
+const isScramble=fmt=>FORMATS[fmt]?.team==="scramble";
+function scramblePct(fmt){const v=S.setup?.allowances?.[fmt],d=DEFAULT_ALLOW[fmt];const parse=x=>String(x??"").split("/").map(n=>num(n.trim())).filter(n=>n!=null);const a=parse(v);return a.length?a:parse(d)}
 const ALLOW_NOTE={
   singles_mp:"Low player plays off 0; the other gets the difference.",
   fourball_mp:"All four play off the low man.",
@@ -274,12 +289,16 @@ const ALLOW_NOTE={
   fourball_sf:"Full strokes. Team takes the better net points per hole. Points per hole from the net score: eagle 4, birdie 3, par 2, bogey 1, double bogey or worse 0.",
   combined_sf:"Full strokes. Team adds both players' net points. Points per hole from the net score: eagle 4, birdie 3, par 2, bogey 1, double bogey or worse 0.",
   stroke_net:"Full strokes. Lowest net total wins; a pick-up counts as net double bogey.",
+  scramble2_mp:"One ball per team. Team handicap = 35% of the lower course handicap + 15% of the higher (USGA), then off the low team. Enter the team's score on the first-listed player's card.",
+  scramble2_sp:"One ball per team. Team handicap = 35% of the lower course handicap + 15% of the higher (USGA). Lowest net total wins. Enter the team's score on the first-listed player's card.",
+  scramble4_mp:"One ball per team. Team handicap = 25/20/15/10% of the four course handicaps, lowest first (USGA), then off the low team. Enter the team's score on the first-listed player's card.",
+  scramble4_sp:"One ball per team. Team handicap = 25/20/15/10% of the four course handicaps, lowest first (USGA). Lowest net total wins. Enter the team's score on the first-listed player's card.",
   scorecard:"No winner, just gross and net totals."
 };
 
 const S={db:null,user:null,readOnly:false,setup:null,players:{},courses:{},matches:{},cards:{},games:{},
   loaded:0,tab:"board",scoreRound:null,scoreGroup:null,scoreHole:null,openMatch:null,pending:{},
-  confirm:null,dirty:false,err:null};
+  confirm:null,dirty:false,err:null,open:new Set()};
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -351,11 +370,17 @@ function computeMatch(m){
   if(sides[0].length<f.side||sides[1].length<f.side){out.state="unset";out.text="Pick players";return out}
   const r=roundById(m.round),c=S.courses[r?.course];
   if(!courseReady(c)){out.state="nocourse";out.text="Needs course card";return out}
-  const allow=(num(S.setup?.allowances?.[m.format])??DEFAULT_ALLOW[m.format])/100;
+  const scr=f.team==="scramble",allow=scr?1:(num(S.setup?.allowances?.[m.format])??DEFAULT_ALLOW[m.format])/100;
   const all=[...sides[0],...sides[1]];
-  out.ch={};out.full={};out.allow=Math.round(allow*100);
+  out.ch={};out.full={};out.allow=scr?scramblePct(m.format).join("/"):Math.round(allow*100);out.scramble=scr;
   all.forEach(p=>{const ch=courseHcp(p,c);out.est=out.est||ch.est;out.ch[p]=ch.v;out.ph[p]=out.full[p]=Math.round(ch.v*allow)});
+  if(scr){   // team handicap: each player's course handicap weighted by rank, lowest first; the whole team plays off it
+    const pct=scramblePct(m.format);
+    out.teamHcp=sides.map(sd=>{const srt=[...sd].sort((a,b)=>out.ch[a]-out.ch[b]);return Math.round(srt.reduce((a,p,i)=>a+out.ch[p]*(pct[i]??0)/100,0))});
+    sides.forEach((sd,i)=>sd.forEach(p=>{out.full[p]=out.teamHcp[i];out.ph[p]=out.teamHcp[i]}));
+  }
   if(f.kind==="mp"){const low=Math.min(...all.map(p=>out.ph[p]));all.forEach(p=>out.ph[p]-=low)}
+  const scorers=scr?sides.map(sd=>sd.slice(0,1)):sides;   // in a scramble only the first-listed player's card counts
   const holes=holesOf(m);out.total=holes.length;
   let diff=0,played=0,closed=false,lastH=null;const tot=[0,0];
   for(const h of holes){
@@ -363,6 +388,7 @@ function computeMatch(m){
     const row={h,par,si,p:{},side:[null,null],won:null,complete:true,counted:false,run:null};
     for(const p of all){
       const g=cardVal(m.round,p,h),s=shotsOn(out.ph[p],si,nHoles(c)),cell={g,s,net:null,pts:null};
+      if(scr&&!scorers[0].includes(p)&&!scorers[1].includes(p)){row.p[p]=cell;continue}
       if(g==null)row.complete=false;
       else if(g==="x"){cell.pts=0;if(f.kind==="sp"||f.kind==="card")cell.net=par+2}  // pick-up = net double bogey
       else{cell.net=g-s;cell.pts=Math.max(0,2+par-cell.net)}
@@ -371,14 +397,14 @@ function computeMatch(m){
     if(row.complete&&!closed){
       played++;lastH=h;row.counted=true;
       if(f.kind==="mp"){
-        const sv=sides.map(sd=>{const n=sd.map(p=>row.p[p].net).filter(v=>v!=null);return n.length?Math.min(...n):null});
+        const sv=scorers.map(sd=>{const n=sd.map(p=>row.p[p].net).filter(v=>v!=null);return n.length?Math.min(...n):null});
         row.side=sv;
         let w="half";
         if(sv[0]!=null&&(sv[1]==null||sv[0]<sv[1]))w="t1";else if(sv[1]!=null&&(sv[0]==null||sv[1]<sv[0]))w="t2";
         row.won=w;if(w==="t1")diff++;if(w==="t2")diff--;row.run=diff;
         if(Math.abs(diff)>holes.length-played)closed=true;
       }else if(f.kind==="sp"||f.kind==="card"){
-        const sv=sides.map(sd=>sd.reduce((a,p)=>a+row.p[p].net,0));
+        const sv=scorers.map(sd=>sd.reduce((a,p)=>a+row.p[p].net,0));
         row.side=sv;tot[0]+=sv[0];tot[1]+=sv[1];row.run=[tot[0],tot[1]];
         row.won=sv[0]<sv[1]?"t1":sv[1]<sv[0]?"t2":"half";
       }else{
@@ -398,7 +424,7 @@ function computeMatch(m){
     if(out.final){out.state="final";out.result=out.leader||"half";out.text=a===0?"Halved":rem>0?`${a}&${rem}`:`${a} UP`}
     else{out.state="live";out.text=(a===0?"All square":`${a} UP`)+` thru ${lastH}`+(a>0&&a===rem?" · dormie":"")}
   }else if(f.kind==="sp"||f.kind==="card"){
-    const gross=[0,1].map(i=>out.rows.filter(x=>x.counted).reduce((a,x)=>a+sides[i].reduce((b,p)=>{const c=x.p[p];return b+(c.g==="x"?c.net+c.s:c.g)},0),0));
+    const gross=[0,1].map(i=>out.rows.filter(x=>x.counted).reduce((a,x)=>a+scorers[i].reduce((b,p)=>{const c=x.p[p];return b+(c.g==="x"?c.net+c.s:c.g)},0),0));
     out.gross=gross;
     out.leader=f.kind==="card"?null:(tot[0]<tot[1]?"t1":tot[1]<tot[0]?"t2":null);
     out.final=played===holes.length;
@@ -433,10 +459,11 @@ function totals(){
     if(res.state==="live")T.live.push(res);
     if(res.final&&d){
       [0,1].forEach(i=>res.sides[i].forEach(pid=>{
-        const R=T.records[pid]||(T.records[pid]={pl:0,w:0,l:0,h:0,pts:0});
+        const R=T.records[pid]||(T.records[pid]={pl:0,w:0,l:0,h:0,pts:0,ms:[]});
         R.pl++;R.pts+=d[i];
-        const mine=i===0?"t1":"t2";
-        if(res.result==="half")R.h++;else if(res.result===mine)R.w++;else R.l++;
+        const mine=i===0?"t1":"t2",outcome=res.result==="half"?"h":res.result===mine?"w":"l";
+        if(outcome==="h")R.h++;else if(outcome==="w")R.w++;else R.l++;
+        R.ms.push({m,res,i,outcome,pts:d[i]});
       }));
     }
   }
@@ -509,11 +536,13 @@ function renderBoard(){
   }
   h+=`</tbody></table></div></section>`;
   const pl=Object.entries(S.players).sort((a,b)=>(a[1].team||"z").localeCompare(b[1].team||"z")||String(a[1].name).localeCompare(String(b[1].name)));
-  h+=`<section class="sec"><h3>Individual records</h3><div class="tbl"><table><thead><tr><th>Player</th><th class="r">HCP</th><th class="r">W‑L‑H</th><th class="r">Pts</th></tr></thead><tbody>`;
-  for(const [id,p] of pl){const R=T.records[id]||{w:0,l:0,h:0,pts:0};
-    h+=`<tr><td><span class="tdot ${p.team||"none"}"></span>${esc(p.name)}</td><td class="r num">${num(p.index)??"–"}</td><td class="r num">${R.w}-${R.l}-${R.h}</td><td class="r num">${fmtPts(R.pts)}</td></tr>`}
-  if(!pl.length)h+=`<tr><td colspan="4" class="hint">Add players on the Setup tab.</td></tr>`;
-  h+=`</tbody></table></div><p class="hint">Records count finished matches only. Pts is what the player's side earned in their matches.</p></section>`;
+  h+=`<section class="sec"><h3>Individual records</h3><div class="xl"><div class="xh"><span>Player</span><span class="num">HCP</span><span class="num">W‑L‑H</span><span class="num">Pts</span></div>`;
+  for(const [id,p] of pl){const R=T.records[id]||{w:0,l:0,h:0,pts:0,ms:[]},key=`rec:${id}`;
+    const body=R.ms.map(x=>{const r=roundById(x.m.round),opp=x.res.sides[1-x.i].map(shortName).join(" & "),mates=x.res.sides[x.i].filter(q=>q!==id).map(shortName).join(" & ");
+      return`<div><span>${esc(r?.name||"")} <span class="hint">${esc(holesLabel(x.m))}</span><br><span class="hint">${mates?`with ${esc(mates)} `:""}vs ${esc(opp)}</span></span><span class="num ${x.outcome==="w"?"c1":x.outcome==="l"?"c2":""}" style="color:${x.outcome==="w"?"var(--ok,#2e7d4f)":x.outcome==="l"?"var(--bad,#b3261e)":"var(--muted)"}">${x.outcome==="w"?"W":x.outcome==="l"?"L":"H"} · ${esc(x.res.text)}</span></div>`}).join("")||`<div><span class="hint">No finished matches yet.</span></div>`;
+    h+=`<details data-x="${key}" ${S.open.has(key)?"open":""}><summary class="xr"><span><span class="tdot ${p.team||"none"}"></span>${esc(p.name)}</span><span class="num">${num(p.index)??"–"}</span><span class="num">${R.w}-${R.l}-${R.h}</span><span class="num">${fmtPts(R.pts)}</span></summary><div class="xb">${body}</div></details>`}
+  if(!pl.length)h+=`<div class="xb"><div><span class="hint">Add players on the Setup tab.</span></div></div>`;
+  h+=`</div><p class="hint">Records count finished matches only. Pts is what the player's side earned in their matches. Tap a name for their matches.</p></section>`;
   return h;
 }
 
@@ -551,8 +580,9 @@ function renderCard(r,c,players,G){
   const tp=v=>v===0?"E":v>0?"+"+v:String(v);
   let h=`<section class="sec"><details ${S.cardOpen?"open":""} data-card><summary class="hint" style="cursor:pointer;font-weight:600">Scorecard</summary><div class="tbl" style="margin-top:8px"><table class="hbh num"><thead><tr><th>Hole</th>${hs.map(x=>`<th>${x}</th>`).join("")}<th>Tot</th></tr></thead><tbody>`;
   h+=`<tr><td>Par</td>${hs.map(x=>`<td>${num(c.pars[x-1])??"–"}</td>`).join("")}<td>${hs.reduce((a,x)=>a+(num(c.pars[x-1])||0),0)}</td></tr>`;
+  h+=`<tr><td class="hint">SI</td>${hs.map(x=>`<td class="hint">${num(c.si[x-1])??"–"}</td>`).join("")}<td></td></tr>`;
   for(const p of players){const ch=courseHcp(p,c);let g=0,d=0,pu=false;
-    h+=`<tr><td class="${G.open?"":G.t1.includes(p)?"c1":"c2"}">${esc(shortName(p))}</td>${hs.map(x=>{const v=cardVal(r.id,p,x),st=shotsOn(ch.v,num(c.si[x-1]),N),par=num(c.pars[x-1]);
+    h+=`<tr><td class="${G.open||!G.t1?"":G.t1.includes(p)?"c1":G.t2?.includes(p)?"c2":""}">${esc(shortName(p))}</td>${hs.map(x=>{const v=cardVal(r.id,p,x),st=shotsOn(ch.v,num(c.si[x-1]),N),par=num(c.pars[x-1]);
       if(v==null)return"<td>·</td>";if(v==="x"){pu=true;return`<td>PU</td>`}g+=v;if(par)d+=v-st-par;
       const gd=par?v-par:0,mk=gd<=-2?"b2":gd===-1?"b1":gd===1?"o1":gd>=2?"o2":"";
       return`<td class="${par&&v-st<par?"w1":""}"><span class="g ${mk}">${v}</span>${st?`<sup>${"•".repeat(st)}</sup>`:""}</td>`}).join("")}<td>${g?g+(pu?"*":""):"–"}${g?` <span class="hint">${tp(d)}</span>`:""}</td></tr>`}
@@ -705,7 +735,7 @@ function renderSetup(){
     <button class="btn" data-act="changepin">Change event PIN</button></div></section>`;
   h+=`<section class="sec"><h2>Handicap allowances</h2><div class="card">`;
   for(const k of Object.keys(FORMATS)){
-    h+=`<div class="plrow" style="grid-template-columns:minmax(0,1fr) 80px"><div><div style="font-weight:600">${FORMATS[k].label}</div><div class="hint">${ALLOW_NOTE[k]}</div></div><input id="al-${k}" type="number" inputmode="numeric" aria-label="${FORMATS[k].label} allowance percent" value="${esc(S.setup?.allowances?.[k]??DEFAULT_ALLOW[k])}" data-set="allow:${k}" ${dis}></div>`;
+    h+=`<div class="plrow" style="grid-template-columns:minmax(0,1fr) 80px"><div><div style="font-weight:600">${FORMATS[k].label}</div><div class="hint">${ALLOW_NOTE[k]}</div></div><input id="al-${k}" type="${isScramble(k)?"text":"number"}" inputmode="${isScramble(k)?"text":"numeric"}" aria-label="${FORMATS[k].label} allowance percent" value="${esc(S.setup?.allowances?.[k]??DEFAULT_ALLOW[k])}" data-set="allow:${k}" ${dis}></div>`;
   }
   h+=`<p class="hint">Percent of course handicap. Strokes fall on holes by stroke index across the full 18, and a 9- or 6-hole match counts only the strokes that land on its holes.</p></div></section>`;
   return h;
@@ -733,6 +763,7 @@ function computeSkins(round,o){   // o: a per-round skins game's own players and
     const row={h,par,si,state:"open",winner:null,net:null,gross:null,value:0,missing:0,tied:[]};
     const nets=[];
     for(const p of out.players){const g=cardVal(round,p,h);if(g==null){row.missing++;continue}if(g!=="x")nets.push({p,g,net:g-shotsOn(out.ph[p],si,nHoles(c))})}
+    row.sc=out.players.map(p=>{const g=cardVal(round,p,h);return{p,g,net:g==null||g==="x"?null:g-shotsOn(out.ph[p],si,nHoles(c))}});
     if(row.missing){row.carryIn=carry;out.holes.push(row);continue}
     out.done++;
     const best=nets.length?Math.min(...nets.map(x=>x.net)):null;
@@ -780,13 +811,14 @@ function renderGames(){
   h+=`<section class="sec"><div class="tbl"><table><thead><tr><th>Player</th><th class="r">Strokes</th><th class="r">Skins</th>${showMoney?`<th class="r">Won</th>`:""}</tr></thead><tbody>`;
   for(const x of ranked){const t=S.players[x.p].team;h+=`<tr><td><span class="tdot ${t||"none"}"></span>${esc(S.players[x.p].name)}</td><td class="r num">${K.ph[x.p]}</td><td class="r num"><b>${x.n||"–"}</b></td>${showMoney?`<td class="r num">${x.n&&per?money(x.n*per):"–"}</td>`:""}</tr>`}
   h+=`</tbody></table></div><p class="hint">${K.skins} skin${K.skins===1?"":"s"} won through ${K.done} complete hole${K.done===1?"":"s"}${K.carry?` · ${K.carry} carrying over`:""}${K.mode==="hole"&&K.pot?` · ${money(per)} a hole (${money(K.pot)} for the round)`:K.mode==="round"&&K.pot?` · ${money(K.pot)} in the pot, ${K.skins?`${money(per)} a skin`:"split across the skins won"}${K.final?"":" so far"}`:T&&T.pot?` · ${money(T.pot)} trip pot, ${T.skins?`${money(per)} a skin`:"split across the skins won"}${T.fin?"":" so far"}`:""}${K.est?" · strokes estimated until rating/slope are in":""}. A hole is decided once all ${K.players.length} players have a score.</p></section>`;
-  h+=`<section class="sec"><h3>Hole by hole</h3><div class="mlist">`;
+  h+=`<section class="sec"><h3>Hole by hole</h3><p class="hint" style="margin:0 0 6px">Tap a hole to see everyone's gross and net.</p><div class="xl">`;
   for(const x of K.holes){
     let res;
     if(x.state==="won")res=`<span class="pill ${S.players[x.winner].team||""}">${esc(shortName(x.winner))} · net ${x.net}${x.value>1?` · ${x.value} skins`:""}</span>`;
     else if(x.state==="tie")res=`<span class="pill">${x.net==null?"All picked up":`Tied at net ${x.net} (${x.tied.length})`}${cfg.carry?" · carries":""}</span>`;
     else res=`<span class="pill">${x.missing} score${x.missing===1?"":"s"} to come</span>`;
-    h+=`<div class="lv" style="border:0;border-bottom:1px solid var(--line);border-radius:0"><span><b class="num">${x.h}</b> <span class="hint">Par ${x.par} · SI ${x.si}</span></span>${res}</div>`;
+    const key=`sk:${r.id}:${x.h}`;
+    h+=`<details data-x="${key}" ${S.open.has(key)?"open":""}><summary><span><b class="num">${x.h}</b> <span class="hint">Par ${x.par} · SI ${x.si}</span></span>${res}</summary><div class="xb">${x.sc.sort((a,b)=>(a.net??99)-(b.net??99)).map(y=>`<div><span><span class="tdot ${S.players[y.p].team||"none"}"></span>${esc(shortName(y.p))}</span><span class="num">${y.g==null?"–":y.g==="x"?"PU":`${y.g} gross · <b>${y.net}</b> net`}</span></div>`).join("")}</div></details>`;
   }
   h+=`</div>${K.carry&&K.done===roundHoles(r.id)?`<p class="hint">${K.carry} skin${K.carry>1?"s":""} still tied after ${K.done}. Settle it however the group likes.</p>`:""}</section>`;
   // trip totals
@@ -1084,7 +1116,7 @@ function chokeFrom(seq,total,sides,label,final,add,unit){
 }
 function computeChoke(){
   const pts={},team={},log=[];
-  const add=(ps,n,why)=>{ps.forEach(p=>{if(S.players[p])pts[p]=(pts[p]||0)+n});const t=S.players[ps[0]]?.team;if(t)team[t]=(team[t]||0)+n;log.push({ps,why})};
+  const add=(ps,n,why)=>{ps.forEach(p=>{if(S.players[p])pts[p]=(pts[p]||0)+n});const t=S.players[ps[0]]?.team;if(t)team[t]=(team[t]||0)+n;log.push({ps,n,why})};
   for(const m of matchList()){
     const res=computeMatch(m),k=res.f?.kind;if(res.manual||!["mp","sf","sp"].includes(k))continue;
     const seq=res.rows.filter(r=>r.counted).map(r=>({h:r.h,d:k==="mp"?(r.won==="t1"?1:r.won==="t2"?-1:0):k==="sf"?r.side[0]-r.side[1]:r.side[1]-r.side[0]}));
@@ -1099,8 +1131,8 @@ function renderChoke(){
     <p class="hint">${chokeRules()}</p>`;
   if(!rows.length)return h+`<p class="hint">Nobody has choked yet.</p></section>`;
   if(Object.keys(team).length)h+=`<p class="hint" style="margin:0 0 6px">Team (a pair's choke counts once): ${["t1","t2"].map(t=>`<span class="tdot ${t}"></span>${esc(teamName(t))} <b>${team[t]||0}</b>`).join(" · ")}</p>`;
-  h+=`<div class="tbl"><table><tbody>${rows.map(([p,n],i)=>`<tr><td><span class="tdot ${S.players[p]?.team||"none"}"></span>${esc(S.players[p]?.name||"")}${n===rows[0][1]?` <span class="pill">${rows.filter(x=>x[1]===n).length>1?"co-choker":"biggest choker"}</span>`:""}</td><td class="r num"><b>${n}</b></td></tr>`).join("")}</tbody></table></div>`;
-  h+=`<div class="mlist" style="margin-top:8px">${log.slice(-12).reverse().map(x=>`<div class="lv" style="border:0;border-bottom:1px solid var(--line);border-radius:0"><span><b>${esc(x.ps.map(shortName).join(" + "))}</b></span><span class="hint" style="text-align:right">${esc(x.why)}</span></div>`).join("")}</div>`;
+  h+=`<p class="hint" style="margin:0 0 6px">Tap a name to see where the points came from.</p><div class="xl">${rows.map(([p,n],i)=>{const key=`ck:${p}`,mine=log.filter(x=>x.ps.includes(p));
+    return`<details data-x="${key}" ${S.open.has(key)?"open":""}><summary><span><span class="tdot ${S.players[p]?.team||"none"}"></span>${esc(S.players[p]?.name||"")}${n===rows[0][1]?` <span class="pill">${rows.filter(x=>x[1]===n).length>1?"co-choker":"biggest choker"}</span>`:""}</span><b class="num">${n}</b></summary><div class="xb">${mine.map(x=>`<div><span>${esc(x.why)}</span><span class="num">+${x.n}</span></div>`).join("")}</div></details>`}).join("")}</div>`;
   return h+`</section>`;
 }
 
@@ -1131,12 +1163,12 @@ function renderSheet(){
   h+=`<div class="result ${rc}"><div class="rt">${esc(big)}</div>${sub?`<div class="hint">${esc(sub)}</div>`:""}<div style="margin-top:4px">${whoLine(res)}</div>${res.est?`<div class="hint">* Handicaps estimated: course rating/slope not entered</div>`:""}</div>`;
   // hole by hole
   if(res.rows.length){
-    const all=[...res.sides[0],...res.sides[1]];
+    const all=res.scramble?[res.sides[0][0],res.sides[1][0]]:[...res.sides[0],...res.sides[1]];
     h+=`<section class="sec"><h3>Hole by hole</h3><div class="tbl"><table class="hbh num"><thead><tr><th>Hole</th>${res.rows.map(x=>`<th>${x.h}</th>`).join("")}</tr></thead><tbody>
       <tr><td class="hint">Par</td>${res.rows.map(x=>`<td class="hint">${x.par}</td>`).join("")}</tr>
       <tr><td class="hint">SI</td>${res.rows.map(x=>`<td class="hint">${x.si}</td>`).join("")}</tr>`;
     for(const p of all){const team=res.sides[0].includes(p)?"c1":"c2";
-      h+=`<tr><td class="${team}">${esc(shortName(p))} <span class="hint">${res.ph[p]}</span></td>${res.rows.map(x=>{const c=x.p[p];return`<td>${c.g==null?"·":c.g==="x"?"PU":c.g}${c.s?`<sup>${"•".repeat(c.s)}</sup>`:""}</td>`}).join("")}</tr>`}
+      h+=`<tr><td class="${team}">${esc(res.scramble?res.sides[team==="c1"?0:1].map(shortName).join(" & "):shortName(p))} <span class="hint">${res.ph[p]}</span></td>${res.rows.map(x=>{const c=x.p[p];return`<td>${c.g==null?"·":c.g==="x"?"PU":c.g}${c.s?`<sup>${"•".repeat(c.s)}</sup>`:""}</td>`}).join("")}</tr>`}
     if(f.kind==="sp"||f.kind==="card"){
       h+=`<tr><td>Net</td>${res.rows.map(x=>`<td class="${f.kind==="sp"?(x.won==="t1"?"w1":x.won==="t2"?"w2":""):""}">${x.counted?`${x.side[0]}·${x.side[1]}`:""}</td>`).join("")}</tr>`;
       h+=`<tr><td>Total</td>${res.rows.map(x=>`<td>${x.counted?`${x.run[0]}–${x.run[1]}`:""}</td>`).join("")}</tr>`;
@@ -1147,9 +1179,13 @@ function renderSheet(){
       h+=`<tr><td>Best net</td>${res.rows.map(x=>`<td class="${x.won==="t1"?"w1":x.won==="t2"?"w2":""}">${x.counted?`${x.side[0]??"–"}·${x.side[1]??"–"}`:""}</td>`).join("")}</tr>`;
       h+=`<tr><td>Match</td>${res.rows.map(x=>`<td class="${x.run>0?"w1":x.run<0?"w2":""}">${x.counted?(x.run===0?"AS":Math.abs(x.run)):""}</td>`).join("")}</tr>`;
     }
-    h+=`</tbody></table></div><p class="hint">Number after each name is the playing handicap for this format${f.kind==="mp"?" (off the low player)":""}. Dots mark strokes received.${f.kind==="sf"?" Points per hole from the net score: eagle 4, birdie 3, par 2, bogey 1, double bogey or worse 0.":""}</p></section>`;
+    h+=`</tbody></table></div><p class="hint">Number after each name is the playing handicap for this format${f.kind==="mp"?(res.scramble?" (off the low team)":" (off the low player)"):""}. Dots mark strokes received.${res.scramble?` One ball per team: the team's score is entered on the first-listed player's card (${esc(all.map(shortName).join(", "))}).`:""}${f.kind==="sf"?" Points per hole from the net score: eagle 4, birdie 3, par 2, bogey 1, double bogey or worse 0.":""}</p></section>`;
     // how each playing handicap was worked out: course handicap, the format's allowance, then off the low man for match play
-    if(res.ch){const low=f.kind==="mp"?Math.min(...all.map(p=>res.full[p])):null;
+    if(res.ch&&res.scramble){const pct=scramblePct(m.format),low=f.kind==="mp"?Math.min(...res.teamHcp):null;
+      h+=`<section class="sec"><h3>Handicaps</h3><div class="tbl"><table><thead><tr><th>Team</th><th class="r">Course</th><th class="r">Team</th><th class="r">Strokes</th></tr></thead><tbody>${res.sides.map((sd,i)=>{const srt=[...sd].sort((a,b)=>res.ch[a]-res.ch[b]);
+        return`<tr><td class="${i?"c2":"c1"}">${esc(sd.map(shortName).join(" & "))}${low!=null&&res.teamHcp[i]===low?` <span class="hint">low</span>`:""}</td><td class="r num">${srt.map(p=>res.ch[p]).join(" + ")}</td><td class="r num">${res.teamHcp[i]}</td><td class="r num"><b>${res.ph[sd[0]]}</b></td></tr>`}).join("")}</tbody></table></div>
+      <p class="hint">Team handicap = ${pct.map((x,i)=>`${x}% of the ${["lowest","2nd","3rd","4th"][i]}`).join(" + ")} course handicap, rounded.${f.kind==="mp"?` Strokes = team handicap minus the low team's (${low}).`:" Strokes are the team handicap."}${res.est?" Estimated until the course rating and slope are in.":""}</p></section>`}
+    else if(res.ch){const low=f.kind==="mp"?Math.min(...all.map(p=>res.full[p])):null;
       h+=`<section class="sec"><h3>Handicaps</h3><div class="tbl"><table><thead><tr><th>Player</th><th class="r">Course</th><th class="r">At ${res.allow}%</th><th class="r">Strokes</th></tr></thead><tbody>${all.map(p=>`<tr><td class="${res.sides[0].includes(p)?"c1":"c2"}">${esc(shortName(p))}${low!=null&&res.full[p]===low?` <span class="hint">low</span>`:""}</td><td class="r num">${res.ch[p]}</td><td class="r num">${res.full[p]}</td><td class="r num"><b>${res.ph[p]}</b></td></tr>`).join("")}</tbody></table></div>
       <p class="hint">${f.kind==="mp"?`Strokes = each player's ${res.allow}% handicap minus the low player's (${low}).`:"Strokes are the handicap at this format's allowance."}${res.est?" Estimated until the course rating and slope are in.":""}</p></section>`}
   }
@@ -1287,7 +1323,7 @@ document.addEventListener("click",e=>{
       serial("matches/"+id,()=>S.db.doc("matches/"+id).set({n,round,from:1,to:roundHoles(round),group:"",label:"",format:"",pts:1,t1:[],t2:[],manual:null,note:""})).then(()=>{S.openMatch=id;render()});break}
   }
 });
-document.addEventListener("toggle",e=>{const d=e.target;if(d.matches&&d.matches("details[data-course]")&&d.open)S.openCourse=d.dataset.course;if(d.matches&&d.matches("details[data-card]"))S.cardOpen=d.open},true);
+document.addEventListener("toggle",e=>{const d=e.target;if(d.matches&&d.matches("details[data-course]")&&d.open)S.openCourse=d.dataset.course;if(d.matches&&d.matches("details[data-card]"))S.cardOpen=d.open;if(d.matches&&d.matches("details[data-x]")){if(d.open)S.open.add(d.dataset.x);else S.open.delete(d.dataset.x)}},true);
 document.addEventListener("change",e=>{
   const el=e.target;
   if(el.dataset.set){
@@ -1296,7 +1332,7 @@ document.addEventListener("change",e=>{
     else if(kind==="skins")updDoc("setup/main",{skins:{[id]:id==="offLow"||id==="carry"||id==="on"?v==="1":id==="allow"?(num(v)??100):id==="buyMode"?v:(num(v)||0)}});
     else if(kind==="choke")updDoc("setup/main",{choke:v==="1"});
     else if(kind==="noteams")updDoc("setup/main",{noTeams:v==="1"});
-    else if(kind==="allow")updDoc("setup/main",{allowances:{[id]:num(v)??DEFAULT_ALLOW[id]}});
+    else if(kind==="allow")updDoc("setup/main",{allowances:{[id]:isScramble(id)?(String(v).trim()||DEFAULT_ALLOW[id]):(num(v)??DEFAULT_ALLOW[id])}});
     else if(kind==="player")updDoc("players/"+id,{[field]:field==="index"?num(v):field==="name"?v.trim():v});
     else if(kind==="teesel"){
       const c=S.courses[id]||{},t=teeSetsOf(c)[+v];if(!t)return;
@@ -1555,7 +1591,7 @@ $("#pinform").addEventListener("submit",async e=>{
   S.pin=pin;ls.set(navKey("pin"),pin);S.readOnly=false;$("#pinbox").hidden=true;setSync("Live");render();toast("Unlocked. You can keep score on this phone.");
 });
 async function boot(){
-  S.tab=ls.get(navKey("tab"))||"board";S.scoreRound=ls.get(navKey("sround"));S.scoreGroup=ls.get(navKey("sgroup"));
+  S.tab=ls.get(navKey("tab"))||"board";if(S.tab==="map")S.tab="board";   // Map tab is hidden for now; renderMap() is keptS.scoreRound=ls.get(navKey("sround"));S.scoreGroup=ls.get(navKey("sgroup"));
   render();
   const cfg=window.BATTLE_CONFIG||{};
   if(!window.supabase||!cfg.url||!cfg.anonKey){S.err="The scoreboard isn't connected to its database yet.";setSync("Offline",true);render();return}
