@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#064C34">
@@ -35,7 +35,8 @@
   --accent:#62BE8F; --accent-ink:#0B1410;
   --t1:#86A9EE; --t1-soft:#1C2A44; --t2:#F09A5E; --t2-soft:#3A2416;
   --warn:#E2B850; --warn-soft:#352B12; color-scheme:dark }
-html,body{background:var(--bg);color:var(--ink)}
+html,html{touch-action:manipulation}
+body{background:var(--bg);color:var(--ink)}
 body{font-family:var(--f-body);font-size:15px;line-height:1.4;-webkit-tap-highlight-color:transparent}
 *{box-sizing:border-box}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -56,9 +57,10 @@ button{cursor:pointer}
 .sync.bad{color:var(--warn)}
 
 main{max-width:720px;margin:0 auto;padding:16px 16px calc(var(--tabh) + 28px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:20px}
-.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(6,1fr);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs button{flex:0 0 16.666%;max-width:120px}   /* same width per tab as the old 6-column grid; the spare space splits between the edges */
 :root{--tabh:64px}
-.tabs button{border:0;background:none;min-height:var(--tabh);padding:9px 0 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;touch-action:manipulation}
+.tabs button{touch-action:manipulation;border:0;background:none;min-height:var(--tabh);padding:9px 0 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;touch-action:manipulation}
 .tabs button svg{width:24px;height:24px;flex:none}
 .tabs button[aria-current="true"]{color:var(--accent);box-shadow:inset 0 3px 0 var(--accent)}
 
