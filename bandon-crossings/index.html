@@ -1323,7 +1323,7 @@ document.addEventListener("click",e=>{
       serial("matches/"+id,()=>S.db.doc("matches/"+id).set({n,round,from:1,to:roundHoles(round),group:"",label:"",format:"",pts:1,t1:[],t2:[],manual:null,note:""})).then(()=>{S.openMatch=id;render()});break}
   }
 });
-document.addEventListener("toggle",e=>{const d=e.target;if(d.matches&&d.matches("details[data-course]")&&d.open)S.openCourse=d.dataset.course;if(d.matches&&d.matches("details[data-card]"))S.cardOpen=d.open;if(d.matches&&d.matches("details[data-x]")){if(d.open)S.open.add(d.dataset.x);else S.open.delete(d.dataset.x)}},true);
+document.addEventListener("toggle",e=>{const d=e.target;if(d.matches&&d.matches("details[data-course]")&&d.open)S.openCourse=d.dataset.course;if(d.matches&&d.matches("details[data-card]"))S.cardOpen=d.open;if(d.matches&&d.matches("details[data-x]")){if(d.open){S.open.add(d.dataset.x);d.parentElement.querySelectorAll("details[data-x][open]").forEach(o=>{if(o!==d)o.open=false})}else S.open.delete(d.dataset.x)}},true);   // one open row per list
 document.addEventListener("change",e=>{
   const el=e.target;
   if(el.dataset.set){
