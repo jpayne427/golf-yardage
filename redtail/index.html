@@ -497,7 +497,7 @@ function matchRow(m,res){
   const r=roundById(m.round);
   return`<button class="mrow" data-act="open" data-id="${esc(m.id)}">
     <span class="n num">${esc(m.n)}</span>
-    <span class="who">${whoLine(res)}<div class="meta">${esc(holesLabel(m))} · ${esc(m.group||"—")} · ${esc(FORMATS[m.format]?.label||"Format TBD")}</div></span>
+    <span class="who">${whoLine(res)}<div class="meta">${esc(holesLabel(m))} · ${esc(m.group||"—")} · ${esc(FORMATS[m.format]?.label||"Format TBD")}${m.locked?" · 🔒":""}</div></span>
     ${pill(res)}</button>`;
 }
 
@@ -657,9 +657,13 @@ function renderMatches(){
     h+=`<section class="sec"><div class="rhead"><h2>${esc(r.name)}</h2><span class="hint">${esc(r.day)}${ms.length?` · ${fmtPts(pts)} pts`:""}</span></div>
       ${rp.length||gs.length?`<p class="hint" style="margin-top:-4px">${rp.length?`Playing: ${esc(rp.map(shortName).join(", "))}`:""}${rp.length&&gs.length?" · ":""}${gs.length?`Side games: ${esc(gs.map(g=>GAMES[g.type]?.label||"Game").join(", "))}`:""}</p>`:""}
       ${S.readOnly?"":`<button class="btn" data-act="editround" data-id="${esc(r.id)}" style="margin-bottom:8px">Players, course &amp; side games</button>`}
+      ${(()=>{if(!captain()||!ms.length)return"";const fin=ms.map(m=>({m,res:computeMatch(m)})).filter(x=>x.res.final&&x.res.ch),todo=fin.filter(x=>!x.m.locked),locked=ms.filter(m=>m.locked).length;
+        return`<div class="rowbtn" style="margin-bottom:8px">${todo.length?`<button class="btn" data-act="lockround" data-id="${esc(r.id)}">Lock ${todo.length} finished match${todo.length>1?"es":""}</button>`:""}${locked?`<button class="btn" data-act="unlockround" data-id="${esc(r.id)}">Unlock ${locked}</button>`:""}</div>${!todo.length&&!locked?"":""}`})()}
       ${ms.length?`<div class="mlist">${ms.map(m=>matchRow(m,computeMatch(m))).join("")}</div>`:`<p class="hint">No matches yet.</p>`}${S.readOnly?"":`<button class="btn" data-act="addmatch" data-round="${esc(r.id)}" style="margin-top:8px">Add a match to ${esc(r.name)}</button>`}</section>`;
   }
   if(!h)h=`<div class="empty">No rounds yet.${S.readOnly?"":" Add one: pick the course, who's playing, and any side games."}</div>`;
+  if(captain()){const todo=matchList().filter(m=>!m.locked).map(computeMatch).filter(res=>res.final&&res.ch).length;
+    if(todo)h+=`<button class="btn" data-act="lockall" style="width:100%;margin-top:4px">Lock all ${todo} finished match${todo>1?"es":""} as played</button>`}
   if(!S.readOnly)h+=`<button class="btn primary" data-act="addround" style="width:100%;margin-top:4px">Add a round</button>`;
   return h;
 }
@@ -743,8 +747,8 @@ function renderSetup(){
     <div class="grid2"><div class="field"><label for="pin-admin">Organizer PIN</label><input id="pin-admin" type="password" autocomplete="off"></div>
     <div class="field"><label for="pin-role">Which PIN</label><select id="pin-role"><option value="pin">Trip PIN</option><option value="captain">Captain's PIN</option></select></div></div>
     <div class="field"><label for="pin-new">New PIN</label><input id="pin-new" type="text" autocomplete="off" autocapitalize="off"></div>
-    <div class="rowbtn"><button class="btn" data-act="changepin">Change PIN</button>${S.readOnly?"":`<button class="btn" data-act="lockphone">Lock this phone</button>`}</div>
-    <p class="hint" style="margin:8px 0 0">Lock this phone to switch PINs, for example to unlock it again as captain.</p></div></section>`;
+    <div class="rowbtn"><button class="btn" data-act="changepin">Change PIN</button>${S.readOnly?"":`<button class="btn" data-act="lockphone">Log out</button>`}</div>
+    <p class="hint" style="margin:8px 0 0">Log out forgets the PIN on this phone, so you can enter a different one (for example the captain's PIN).</p></div></section>`;
   h+=`<section class="sec"><h2>Handicap allowances</h2><div class="card">`;
   for(const k of Object.keys(FORMATS)){
     h+=`<div class="plrow" style="grid-template-columns:minmax(0,1fr) 80px"><div><div style="font-weight:600">${FORMATS[k].label}</div><div class="hint">${ALLOW_NOTE[k]}</div></div><input id="al-${k}" type="${isScramble(k)?"text":"number"}" inputmode="${isScramble(k)?"text":"numeric"}" aria-label="${FORMATS[k].label} allowance percent" value="${esc(S.setup?.allowances?.[k]??DEFAULT_ALLOW[k])}" data-set="allow:${k}" ${cdis()}></div>`;
@@ -1301,7 +1305,7 @@ document.addEventListener("click",e=>{
   switch(act){
     case"sround":S.scoreRound=b.dataset.id;S.scoreGroup=null;S.scoreHole=null;S.centerHole=true;ls.set(navKey("sround"),S.scoreRound);render();break;
     case"pin":openPin();break;
-    case"lockphone":S.pin="";S.level=1;S.readOnly=true;ls.set(navKey("pin"),"");ls.set(navKey("level"),"1");setSync("View only",true);render();toast("Locked. Enter a PIN to keep scoring.");break;
+    case"lockphone":S.pin="";S.level=1;S.readOnly=true;ls.set(navKey("pin"),"");ls.set(navKey("level"),"1");setSync("View only",true);render();toast("Logged out. Enter a PIN to keep scoring.");break;
     case"changepin":changePin();break;
     case"holes":{const m=S.matches[S.openMatch];const [a,z]=b.dataset.r.split("-").map(Number);if(m)updDoc("matches/"+m.id,{from:a,to:z});break}
     case"newevent":createEvent();break;
@@ -1336,6 +1340,9 @@ document.addEventListener("click",e=>{
     case"manual":{const m=S.matches[S.openMatch];const w=b.dataset.w;updDoc("matches/"+m.id,{manual:w?{winner:w,score:m.manual?.score||""}:null});break}
     case"lock":{const m=S.matches[S.openMatch],res=computeMatch(m);if(!res.ch)break;updDoc("matches/"+m.id,{locked:{at:new Date().toISOString(),ph:res.ph,ch:res.ch,full:res.full,allow:res.allow,teamHcp:res.teamHcp||null}});toast("Locked. Handicaps for this match are frozen as played.");break}
     case"unlock":{const m=S.matches[S.openMatch];updDoc("matches/"+m.id,{locked:null});break}
+    case"lockround":{const at=new Date().toISOString();let n=0;matchList().filter(m=>m.round===b.dataset.id&&!m.locked).forEach(m=>{const res=computeMatch(m);if(!res.final||!res.ch)return;n++;updDoc("matches/"+m.id,{locked:{at,ph:res.ph,ch:res.ch,full:res.full,allow:res.allow,teamHcp:res.teamHcp||null}})});toast(`Locked ${n} match${n===1?"":"es"} as played.`);break}
+    case"lockall":{const at=new Date().toISOString();let n=0;matchList().filter(m=>!m.locked).forEach(m=>{const res=computeMatch(m);if(!res.final||!res.ch)return;n++;updDoc("matches/"+m.id,{locked:{at,ph:res.ph,ch:res.ch,full:res.full,allow:res.allow,teamHcp:res.teamHcp||null}})});toast(`Locked ${n} match${n===1?"":"es"} as played.`);break}
+    case"unlockround":{let n=0;matchList().filter(m=>m.round===b.dataset.id&&m.locked).forEach(m=>{n++;updDoc("matches/"+m.id,{locked:null})});toast(`Unlocked ${n} match${n===1?"":"es"}.`);break}
     case"askdel":S.confirm=b.dataset.id;render();break;
     case"delplayer":{const id=b.dataset.id;S.confirm=null;serial("players/"+id,()=>S.db.doc("players/"+id).delete());break}
     case"delmatch":{const id=b.dataset.id;S.confirm=null;S.openMatch=null;serial("matches/"+id,()=>S.db.doc("matches/"+id).delete());render();break}
