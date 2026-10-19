@@ -446,7 +446,8 @@ function totals(){
 /* ---------- rendering ---------- */
 function pill(res){
   if(res.state==="final"){const c=res.result==="half"?"half":res.result;return`<span class="pill ${c}">${res.result==="half"?"Halved":`<b>${esc(teamName(res.result))}</b><br>${esc(res.text)}`}</span>`}
-  if(res.state==="live")return`<span class="pill live ${res.leader||""}">${esc(res.text)}</span>`;
+  if(res.state==="live"){const i=res.text.indexOf(" thru ");const top=res.leader?teamName(res.leader):i>0?res.text.slice(0,i):res.text,bot=res.leader?res.text:i>0?res.text.slice(i+1):"";
+    return`<span class="pill live ${res.leader||""}"><b>${esc(top)}</b>${bot?`<br>${esc(bot)}`:""}</span>`}
   if(res.state==="nocourse")return`<span class="pill warn">${esc(res.text)}</span>`;
   return`<span class="pill">${esc(res.text)}</span>`;
 }
