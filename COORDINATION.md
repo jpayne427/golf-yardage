@@ -8,6 +8,23 @@ This repo is public, so never put PINs, API keys, or player names and handicaps 
 
 This file lives on **`main`**, in the repo `jpayne427/golf-yardage`. Always read and write it there.
 
+## 2026-10-19 cloud: captain's PIN tier shipped (needs one SQL run)
+
+**Status:** app code is on main. Joe runs `supabase/captain-pin.sql` once, then sets each event's
+captain's PIN from Setup > Event PINs (organizer PIN needed). Until the SQL runs, every PIN
+unlocks as a scorer and the captain-only parts stay disabled.
+- **Tiers:** trip PIN (scorer, level 1), captain's PIN (`captain:<event>`, level 2), organizer (3).
+  `public.pin_level(pin, event)` tells the app the tier; `public.set_pin(admin, new, event, role)`
+  sets a trip or captain PIN. `write_doc` enforces the captain-only writes server-side.
+- **Captain-only:** delete a match; result override; lock/unlock a match; per-match stroke overrides
+  (`matches.strokes`); per-round course handicap overrides (`cards.ch`); course cards, tees and
+  "Tees today"; handicap allowances.
+- **Lock:** `matches.locked` snapshots the playing handicaps (ph/ch/full/allow/teamHcp) so later
+  Setup changes don't move the result. Scores can still be corrected.
+- Overrides show as "set" in the Handicaps table and Totals. Setup > Event PINs has "Lock this
+  phone" so a captain can re-unlock with the captain's PIN.
+- Still open from the backlog: per-event view PIN, event icon upload, private repo, freeze bandon-2026.
+
 ## 2026-10-18 cloud: backlog, captain's PIN and match locking (after Bandon)
 
 Joe's request, for after the trip (not during the Gorse Cup):
