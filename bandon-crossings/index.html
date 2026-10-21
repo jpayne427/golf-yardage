@@ -255,6 +255,7 @@ body{margin:0}
 </div>
 <div id="toast" class="toast" hidden></div>
 <input id="scanfile" type="file" accept="image/*" multiple hidden>
+<input id="iconfile" type="file" accept="image/*" hidden>
 <div id="scanbox" class="scanbox" hidden></div>
 <div id="pinbox" class="pinbox" hidden>
   <form class="card" id="pinform">
@@ -677,6 +678,10 @@ function renderSetup(){
   const TM=teamsOn();
   h+=`<section class="sec"><h2>Format</h2><div class="card"><div class="field"><label for="tm-on">Teams</label><select id="tm-on" data-set="noteams:x" ${dis}><option value="0" ${TM?"selected":""}>Two teams (a team competition)</option><option value="1" ${TM?"":"selected"}>No teams (everyone for themselves)</option></select></div><p class="hint" style="margin:0">${TM?"The Board shows the team score. Name the teams and put players on them below.":"The Board shows each round's gross and net scores and the side-game money. Head-to-head matches still work."}</p></div></section>`;
   if(TM)h+=`<section class="sec"><h2>Teams</h2><div class="card grid2">${["t1","t2"].map(t=>`<div class="field"><label for="tn-${t}"><span class="tdot ${t}"></span>${t==="t1"?"Team 1":"Team 2"} name</label><input id="tn-${t}" type="text" value="${esc(teamName(t))}" data-set="team:${t}" ${dis}></div>`).join("")}</div></section>`;
+  h+=`<section class="sec"><h2>Event icon</h2><div class="card" style="display:grid;grid-template-columns:72px 1fr;gap:14px;align-items:center">
+    <div style="width:72px;height:72px;border-radius:18px;background:var(--accent);display:grid;place-items:center;overflow:hidden">${S.setup?.icon?`<img src="${esc(S.setup.icon)}" alt="" style="width:72px;height:72px;object-fit:cover">`:`<img src="../brand/icon-192.png" alt="" style="width:56px;height:56px;border-radius:12px">`}</div>
+    <div><p class="hint" style="margin:0 0 8px">Shown on the ShipStiffs home page for ${esc(S.setup?.name||"this event")}. Square pictures work best; it's resized on your phone before it's saved.</p>
+    ${captain()?`<div class="rowbtn"><button class="btn" data-act="iconpick">${S.setup?.icon?"Change picture":"Upload a picture"}</button>${S.setup?.icon?`<button class="btn" data-act="iconclear">Remove</button>`:""}</div>`:S.readOnly?"":CAP_NOTE}</div></div></section>`;
   const pl=Object.entries(S.players).sort((a,b)=>String(a[1].name).localeCompare(String(b[1].name)));
   const tot={t1:[],t2:[]};pl.forEach(([,p])=>{if(tot[p.team]&&num(p.index)!=null)tot[p.team].push(num(p.index))});
   const sum=a=>a.reduce((x,y)=>x+y,0);
@@ -1307,6 +1312,8 @@ document.addEventListener("click",e=>{
   switch(act){
     case"sround":S.scoreRound=b.dataset.id;S.scoreGroup=null;S.scoreHole=null;S.centerHole=true;ls.set(navKey("sround"),S.scoreRound);render();break;
     case"pin":openPin();break;
+    case"iconpick":$("#iconfile").value="";$("#iconfile").click();break;
+    case"iconclear":updDoc("setup/main",{icon:null});toast("Icon removed.");break;
     case"lockphone":S.pin="";S.level=1;S.readOnly=true;ls.set(navKey("pin"),"");ls.set(navKey("level"),"1");setSync("View only",true);render();toast("Logged out. Enter a PIN to keep scoring.");break;
     case"changepin":changePin();break;
     case"holes":{const m=S.matches[S.openMatch];const [a,z]=b.dataset.r.split("-").map(Number);if(m)updDoc("matches/"+m.id,{from:a,to:z});break}
@@ -1495,6 +1502,16 @@ function shrink(file){ // phone photos are huge: send a 1600px JPEG instead
       const d=c.toDataURL("image/jpeg",0.85);res({preview:d,media_type:"image/jpeg",data:d.split(",")[1]})};
     img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("That file isn't a photo the browser can open."))};img.src=url});
 }
+// event icon: square 192px PNG kept in the event's setup doc (about 20-40 KB)
+function squareIcon(file){
+  return new Promise((res,rej)=>{const img=new Image(),url=URL.createObjectURL(file);
+    img.onload=()=>{const n=192,w=img.naturalWidth,h=img.naturalHeight,m=Math.min(w,h),c=document.createElement("canvas");c.width=n;c.height=n;
+      c.getContext("2d").drawImage(img,(w-m)/2,(h-m)/2,m,m,0,0,n,n);URL.revokeObjectURL(url);res(c.toDataURL("image/png"))};
+    img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("That file isn't a picture the browser can open."))};img.src=url});
+}
+$("#iconfile").addEventListener("change",async e=>{const f=e.target.files?.[0];if(!f)return;
+  try{let d=await squareIcon(f);if(d.length>120000){const c=document.createElement("canvas"),img=new Image();await new Promise(r=>{img.onload=r;img.src=d});c.width=c.height=192;c.getContext("2d").drawImage(img,0,0);d=c.toDataURL("image/jpeg",0.85)}
+    updDoc("setup/main",{icon:d});toast("Icon saved. The home page picks it up within a minute.")}catch(err){toast(err.message||"Couldn't read that picture.")}});
 function scanView(html){const el=$("#scanbox");el.innerHTML=`<div class="in">${html}</div>`;el.hidden=false;el.scrollTop=0}
 function closeScan(){$("#scanbox").hidden=true;$("#scanbox").innerHTML=""}
 // Photos collect in a tray first, so the camera can take front and back before sending.

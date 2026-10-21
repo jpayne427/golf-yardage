@@ -117,12 +117,12 @@ body.has-install main{padding-bottom:110px}
 <main id="home">
   <section class="sec">
     <h3>Your events</h3>
-    <a class="event" href="bandon-2026/" aria-label="Open Bandon 2026, The Gorse Cup">
+    <a class="event" href="bandon-2026/" data-event="bandon-2026" aria-label="Open Bandon 2026, The Gorse Cup">
       <div class="ico"><img src="brand/events/gorse-cup.svg" alt="" style="image-rendering:pixelated"></div>
       <div><div class="t">Bandon 2026<br>The Gorse Cup</div><div class="m">Oct 16–18 · Bandon Dunes Resort · 8 golfers</div></div>
       <span class="chip live">Next up</span>
     </a>
-    <a class="event" href="bandon-crossings/" aria-label="Open Bandon Warm-ups">
+    <a class="event" href="bandon-crossings/" data-event="bandon-crossings" aria-label="Open Bandon Warm-ups">
       <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:34px;height:34px;color:var(--brand-ink)"><path d="M7 21V3.5"/><path d="M7 4l10 3.5L7 11"/><ellipse cx="12" cy="20.5" rx="7.5" ry="1.8"/></svg></div>
       <div><div class="t">Bandon<br>Warm-ups</div><div class="m">Practice rounds · not part of The Gorse Cup</div></div>
       <span class="chip live">Practice</span>
@@ -187,6 +187,15 @@ body.has-install main{padding-bottom:110px}
   <button class="x" id="install-x" aria-label="Dismiss">×</button>
 </div>
 
+<script src="config.js"></script>
+<script>
+// Event icons uploaded from each event's Setup tab replace the card pictures here.
+(async()=>{const cfg=window.BATTLE_CONFIG;if(!cfg?.url||!cfg?.anonKey)return;
+  try{const r=await fetch(`${cfg.url}/rest/v1/docs?select=collection,icon:data->>icon&id=eq.main&collection=like.*setup`,{headers:{apikey:cfg.anonKey,Authorization:"Bearer "+cfg.anonKey}});
+    if(!r.ok)return;for(const row of await r.json()){if(!row.icon||!/^data:image\//.test(row.icon))continue;
+      const ev=row.collection==="setup"?"bandon-2026":row.collection.replace(/\.setup$/,"");
+      const box=document.querySelector(`.event[data-event="${ev}"] .ico`);if(box)box.innerHTML=`<img src="${row.icon}" alt="" style="width:56px;height:56px;border-radius:14px;object-fit:cover">`}}catch(e){}})();
+</script>
 <script src="lib/formats.js"></script>
 <script>
 const F=window.SS_FORMATS||[];

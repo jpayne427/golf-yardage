@@ -11,7 +11,7 @@
 --   - deleting a match
 --   - a match's result override, lock, or stroke overrides (matches.manual / locked / strokes)
 --   - course cards and tees (the courses collection)
---   - handicap allowances (setup.allowances)
+--   - handicap allowances and the event icon (setup.allowances, setup.icon)
 --   - a player's course handicap override for a round (cards.ch)
 --
 -- Set each event's captain PIN from the app (Setup > Event PIN, needs the organizer PIN),
@@ -55,7 +55,7 @@ begin
   if lvl < 2 then
     if (kind = 'matches' and (p_mode = 'delete' or p_data ?| array['manual', 'locked', 'strokes']))
        or kind = 'courses'
-       or (kind = 'setup' and p_mode <> 'set' and p_data ? 'allowances')
+       or (kind = 'setup' and p_mode <> 'set' and p_data ?| array['allowances', 'icon'])
        or (kind = 'cards' and p_data ? 'ch') then
       raise exception 'captain only' using errcode = '42501';
     end if;
