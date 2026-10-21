@@ -752,8 +752,9 @@ function renderSetup(){
   h+=`<section class="sec"><h2>Event PINs</h2><div class="card">
     <p class="hint" style="margin:0">This phone is unlocked as <b>${S.readOnly?"view only":S.level>=3?"organizer":S.level>=2?"captain":"scorer"}</b>. ${esc(S.setup?.name||"This event")} has two PINs: the <b>trip PIN</b> keeps score and sets up matches and games; the <b>captain's PIN</b> also locks matches, overrides results and handicaps, deletes matches, and edits course cards, tees and allowances. Changing either needs the organizer PIN, which unlocks every event. Other phones are asked for the new PIN the next time they save something.</p>
     <div class="grid2"><div class="field"><label for="pin-admin">Organizer PIN</label><input id="pin-admin" type="password" autocomplete="off"></div>
-    <div class="field"><label for="pin-role">Which PIN</label><select id="pin-role"><option value="pin">Trip PIN</option><option value="captain">Captain's PIN</option></select></div></div>
+    <div class="field"><label for="pin-role">Which PIN</label><select id="pin-role"><option value="pin">Trip PIN</option><option value="captain">Captain's PIN</option><option value="view">View PIN (private event)</option></select></div></div>
     <div class="field"><label for="pin-new">New PIN</label><input id="pin-new" type="text" autocomplete="off" autocapitalize="off"></div>
+    <p class="hint" style="margin:0 0 8px">${S.viewLocked?`<b>This event is private:</b> a PIN is needed just to see it. To make it public again, pick "View PIN" and leave the new PIN empty.`:`<b>This event is public:</b> anyone with the link can see the scores. Set a View PIN to make it private.`}</p>
     <div class="rowbtn"><button class="btn" data-act="changepin">Change PIN</button>${S.readOnly?"":`<button class="btn" data-act="lockphone">Log out</button>`}</div>
     <p class="hint" style="margin:8px 0 0">Log out forgets the PIN on this phone, so you can enter a different one (for example the captain's PIN).</p></div></section>`;
   h+=`<section class="sec"><h2>Handicap allowances</h2><div class="card">`;
@@ -1253,6 +1254,7 @@ function render(){
   document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-current",String(b.dataset.tab===S.tab)));
   const main=$("#main");
   if(S.err){main.innerHTML=`<div class="empty">${esc(S.err)}</div>`;return}
+  if(S.gate){main.innerHTML=`<div class="empty"><b>This event is private.</b><br>Enter its PIN to see the scores.<br><button class="btn primary" data-act="viewpin" style="margin-top:10px">Enter PIN</button></div>`;return}
   if(S.loaded<5){if(!main.querySelector(".splash"))main.innerHTML=`<div class="splash"><img src="../brand/logo.png" alt="ShipStiffs">Loading the scoreboard…</div>`;return}
   const lockBanner=S.readOnly?`<div class="banner" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span><b>View only.</b> Enter the trip PIN to keep score.</span><button class="btn primary" data-act="pin" style="padding:8px 12px">Enter PIN</button></div>`:"";
   if(!S.setup&&NEW_EVENT_DEFAULTS[EVENT]?.name){const [x,...y]=NEW_EVENT_DEFAULTS[EVENT].name.split(" ");$("#evname").innerHTML=`<small>ShipStiffs</small>${esc(x)} <span>${esc(y.join(" "))}</span>`}
@@ -1312,6 +1314,7 @@ document.addEventListener("click",e=>{
   switch(act){
     case"sround":S.scoreRound=b.dataset.id;S.scoreGroup=null;S.scoreHole=null;S.centerHole=true;ls.set(navKey("sround"),S.scoreRound);render();break;
     case"pin":openPin();break;
+    case"viewpin":openPin("view");break;
     case"iconpick":$("#iconfile").value="";$("#iconfile").click();break;
     case"iconclear":updDoc("setup/main",{icon:null});toast("Icon removed.");break;
     case"lockphone":S.pin="";S.level=1;S.readOnly=true;ls.set(navKey("pin"),"");ls.set(navKey("level"),"1");setSync("View only",true);render();toast("Logged out. Enter a PIN to keep scoring.");break;
@@ -1419,8 +1422,8 @@ function makeStore(sb){
   const emit=c=>subs.forEach(l=>{if(l.c===c)l.fn(l.id?docSnap(c,l.id):collSnap(c))});
   const put=(c,id,d)=>{(cache[c]||(cache[c]={}))[id]=d};
   async function loadAll(){
-    const {data,error}=await sb.from("docs").select("collection,id,data");
-    if(error)throw error;
+    const {data,error}=S.viewLocked?await sb.rpc("read_event",{p_pin:S.vpin||S.pin||"",p_event:EVENT}):await sb.from("docs").select("collection,id,data");
+    if(error)throw /wrong pin/i.test(error.message||"")?{code:"view_pin"}:error;
     for(const k of Object.keys(cache))cache[k]={};
     data.forEach(r=>{const c=own(r.collection);if(c)put(c,r.id,r.data)});
     ["setup","players","courses","matches","cards","games"].forEach(emit);
@@ -1621,19 +1624,34 @@ $("#scanbox").addEventListener("click",e=>{
 });
 async function changePin(){
   const admin=$("#pin-admin").value.trim(),pin=$("#pin-new").value.trim(),role=$("#pin-role")?.value||"pin";
-  if(!admin||!pin){toast("Enter the organizer PIN and the new PIN.");return}
+  if(!admin||(!pin&&role!=="view")){toast("Enter the organizer PIN and the new PIN.");return}
   let {data,error}=await S.sb.rpc("set_pin",{p_admin:admin,p_new:pin,p_event:EVENT,p_role:role});
   if(error&&role==="pin"&&/set_pin/.test(error.message||""))({data,error}=await S.sb.rpc("change_pin",{p_admin:admin,p_new:pin,p_event:EVENT}));  // before captain-pin.sql is run
-  const msg={ok:`${role==="captain"?"Captain's":"Trip"} PIN changed for this event only. This phone is unlocked with it.`,wrong_admin:"That organizer PIN isn't right.",too_short:"Use at least 4 characters for the PIN.",not_set_up:"Event PINs aren't switched on yet (run event-pins.sql in Supabase)."};
+  const msg={ok:role==="view"?"View PIN set. This event is private now; the home page link asks for it.":`${role==="captain"?"Captain's":"Trip"} PIN changed for this event only. This phone is unlocked with it.`,cleared:"View PIN removed. This event is public again.",wrong_admin:"That organizer PIN isn't right.",too_short:"Use at least 4 characters for the PIN.",not_set_up:"Event PINs aren't switched on yet (run event-pins.sql in Supabase)."};
   if(error){toast(/set_pin/.test(error.message||"")?"Captain's PINs aren't switched on yet (run captain-pin.sql in Supabase).":/change_pin/.test(error.message||"")?msg.not_set_up:"Couldn't change the PIN. Check your connection.");return}
-  if(data==="ok"){S.pin=pin;ls.set(navKey("pin"),pin);S.readOnly=false;S.level=role==="captain"?2:1;ls.set(navKey("level"),String(S.level));$("#pin-admin").value="";$("#pin-new").value="";render()}
+  if(data==="ok"&&role==="view"){S.viewLocked=true;S.vpin=pin;ls.set(navKey("vpin"),pin);$("#pin-admin").value="";$("#pin-new").value="";render()}
+  else if(data==="cleared"){S.viewLocked=false;S.vpin="";ls.set(navKey("vpin"),"");$("#pin-admin").value="";render()}
+  else if(data==="ok"){S.pin=pin;ls.set(navKey("pin"),pin);S.readOnly=false;S.level=role==="captain"?2:1;ls.set(navKey("level"),String(S.level));$("#pin-admin").value="";$("#pin-new").value="";render()}
   toast(msg[data]||"Couldn't change the PIN.");
 }
-function openPin(){$("#pinmsg").textContent="";$("#pin").value="";$("#pinbox").hidden=false;setTimeout(()=>$("#pin").focus(),50)}
+function openPin(mode){S.pinMode=mode||"score";
+  $("#pinform h2").textContent=S.pinMode==="view"?"Private event":"Keep score";
+  $("#pinform p.hint").textContent=S.pinMode==="view"?"Enter the view PIN to see this event (the trip or captain's PIN works too). Ask the organizer if you don't have it.":"Enter the trip PIN to enter scores and change matches. Ask the organizer if you don't have it.";
+  $("#pin").placeholder=S.pinMode==="view"?"View PIN":"Trip PIN";$("#pincancel").hidden=S.pinMode==="view"&&!!S.gate;
+  $("#pinmsg").textContent="";$("#pin").value="";$("#pinbox").hidden=false;setTimeout(()=>$("#pin").focus(),50)}
 $("#pincancel").onclick=()=>{$("#pinbox").hidden=true};
 $("#pinform").addEventListener("submit",async e=>{
   e.preventDefault();const pin=$("#pin").value.trim();if(!pin)return;
   $("#pinmsg").textContent="Checking…";
+  if(S.pinMode==="view"){
+    const r=await S.sb.rpc("view_ok",{p_pin:pin,p_event:EVENT});
+    if(r.error){$("#pinmsg").textContent="Couldn't check the PIN. Check your connection and try again.";return}
+    if(!r.data){$("#pinmsg").textContent="That PIN isn't right.";return}
+    S.vpin=pin;ls.set(navKey("vpin"),pin);
+    // a trip or captain's PIN typed here unlocks scoring as well
+    try{const l=await S.sb.rpc("pin_level",{p_pin:pin,p_event:EVENT});const lvl=num(l.data)||0;if(lvl>=1){S.pin=pin;S.level=lvl;S.readOnly=false;ls.set(navKey("pin"),pin);ls.set(navKey("level"),String(lvl))}}catch(e){}
+    $("#pinbox").hidden=true;S.gate=false;render();if(S.reload)S.reload();return;
+  }
   let {data,error}=await S.sb.rpc("check_pin",{p_pin:pin,p_event:EVENT});
   if(error&&/check_pin/.test(error.message||""))({data,error}=await S.sb.rpc("check_pin",{p_pin:pin}));  // before event-pins.sql is run
   if(error){$("#pinmsg").textContent="Couldn't check the PIN. Check your connection and try again.";return}
@@ -1642,22 +1660,30 @@ $("#pinform").addEventListener("submit",async e=>{
   S.pin=pin;S.level=lvl;ls.set(navKey("pin"),pin);ls.set(navKey("level"),String(lvl));S.readOnly=false;$("#pinbox").hidden=true;setSync("Live");render();toast(lvl>=3?"Unlocked as organizer.":lvl>=2?"Unlocked as captain.":"Unlocked. You can keep score on this phone.");
 });
 async function boot(){
-  S.tab=ls.get(navKey("tab"))||"board";if(S.tab==="map")S.tab="board";   // Map tab is hidden for now; renderMap() is keptS.scoreRound=ls.get(navKey("sround"));S.scoreGroup=ls.get(navKey("sgroup"));
+  S.tab=ls.get(navKey("tab"))||"board";if(S.tab==="map")S.tab="board";   // Map tab is hidden for now; renderMap() is kept
+  S.scoreRound=ls.get(navKey("sround"));S.scoreGroup=ls.get(navKey("sgroup"));
   render();
   const cfg=window.BATTLE_CONFIG||{};
   if(!window.supabase||!cfg.url||!cfg.anonKey){S.err="The scoreboard isn't connected to its database yet.";setSync("Offline",true);render();return}
   S.sb=supabase.createClient(cfg.url,cfg.anonKey);
   const db=makeStore(S.sb);S.db=db;
-  S.pin=ls.get(navKey("pin"))||"";S.readOnly=!S.pin;S.level=num(ls.get(navKey("level")))||1;
+  S.pin=ls.get(navKey("pin"))||"";S.readOnly=!S.pin;S.level=num(ls.get(navKey("level")))||1;S.vpin=ls.get(navKey("vpin"))||"";
+  try{const r=await S.sb.rpc("event_locked",{p_event:EVENT});S.viewLocked=!r.error&&r.data===true}catch(e){S.viewLocked=false}   // before view-pin.sql is run: public
+  if(S.viewLocked&&!S.vpin&&!S.pin){S.gate=true;render();openPin("view");}
   const mark=k=>{if(!S["_"+k]){S["_"+k]=1;S.loaded++}};
   db.doc("setup/main").onSnapshot(s=>{S.setup=s.exists?s.data():null;mark("setup");render()});
   const coll=(name,key)=>db.collection(name).onSnapshot(q=>{const o={};q.docs.forEach(d=>{o[d.id]={...d.data(),id:d.id}});S[key]=o;mark(key);render()});
   coll("players","players");coll("courses","courses");coll("matches","matches");coll("cards","cards");coll("games","games");
   db.listen(st=>{if(st==="SUBSCRIBED")setSync(S.readOnly?"View only":"Live",S.readOnly);else if(st==="CHANNEL_ERROR"||st==="TIMED_OUT")setSync("Reconnecting…",true)});
-  try{await db.loadAll()}catch(e){S.err="Couldn't load the scoreboard. Check your connection and reload.";setSync("Offline",true);render();return}
-  // phones sleep and drop the live connection: catch up whenever the app comes back
-  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")db.loadAll().catch(()=>{})});
-  setInterval(()=>{if(document.visibilityState==="visible")db.loadAll().catch(()=>{})},60000);
+  const load=async()=>{try{await db.loadAll();S.gate=false;S.err=null}catch(e){
+    if(e&&e.code==="view_pin"){S.gate=true;S.vpin="";ls.set(navKey("vpin"),"");setSync("Private",true);render();openPin("view");return}
+    S.err="Couldn't load the scoreboard. Check your connection and reload.";setSync("Offline",true);render()}};
+  S.reload=load;
+  if(!S.gate)await load();
+  // phones sleep and drop the live connection: catch up whenever the app comes back.
+  // a private event gets no live updates (its rows are hidden from realtime), so it polls instead
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&!S.gate)db.loadAll().catch(()=>{})});
+  setInterval(()=>{if(document.visibilityState==="visible"&&!S.gate)db.loadAll().catch(()=>{})},S.viewLocked?8000:60000);
   if(S.tab==="score")wake();
 }
 /* "Add to Home Screen" nudge: only in a normal browser tab, until dismissed */

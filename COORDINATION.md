@@ -8,6 +8,17 @@ This repo is public, so never put PINs, API keys, or player names and handicaps 
 
 This file lives on **`main`**, in the repo `jpayne427/golf-yardage`. Always read and write it there.
 
+## 2026-10-21 cloud: view PIN (private events) and event icons shipped
+
+- **View PIN:** `supabase/view-pin.sql` (Joe runs once; after event-pins and captain-pin). Sets a
+  `view:<event>` PIN from Setup > Event PINs; empty new PIN clears it. RLS on `public.docs` hides a
+  private event's rows from public reads and realtime; the app loads them through
+  `public.read_event(pin, event)` and polls every 8 s instead of live updates. Trip, captain and
+  organizer PINs also open a private event. Gate screen in the app until a PIN is entered.
+- **Event icon:** Setup > Event icon (captain-only, `setup.icon` data URL, 192 px). The home page
+  fetches icons from the database and swaps them into the cards.
+- Fixed: Scores tab wasn't restoring the last round/group on reload (comment swallowed two lines).
+
 ## 2026-10-19 cloud: captain's PIN tier shipped (needs one SQL run)
 
 **Status:** app code is on main. Joe runs `supabase/captain-pin.sql` once, then sets each event's
